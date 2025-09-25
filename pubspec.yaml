@@ -1,0 +1,29 @@
+name: fluxo_inicial
+description: Fluxo inicial com splash, onboarding e persistencia
+publish_to: 'none'
+
+environment:
+  sdk: '>=2.18.0 <3.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  shared_preferences: ^2.1.0
+  flutter_native_splash: ^2.2.6
+  smooth_page_indicator: ^1.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/splash.png
+
+flutter_native_splash:
+  color: "#ffffff"
+  image: assets/splash.png
+  android: true
+  ios: true
+  web: false
