@@ -83,6 +83,55 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
 
-  Widget _buildWelcome() => Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Bem-vindo!')));
-  Widget _buildHowItWorks() => Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Como funciona')));
+  Widget _buildWelcome() => Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(32), // Borda arredondada
+                child: Image.asset(
+                  'assets/images/bem_vindo.png',
+                  height: 260,
+                  width: 260,
+                  fit: BoxFit.cover, 
+                ),
+              ),
+              SizedBox(height: 24),
+              Text('Bem-vindo ao Fitness App', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+      );
+  Widget _buildHowItWorks() => Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Como funciona',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 24), 
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.asset(
+                  'assets/images/unnamed.png',
+                  height: 200, 
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              SizedBox(height: 24),
+              Text(
+                'Dentro do aplicativo, você pode registrar suas atividades físicas, acompanhar seu progresso e definir metas personalizadas para melhorar sua saúde e bem-estar.',
+                style: TextStyle(fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
 }

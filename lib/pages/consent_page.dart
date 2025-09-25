@@ -26,12 +26,21 @@ class _ConsentPageState extends State<ConsentPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('Consentimento de marketing', style: Theme.of(context).textTheme.titleLarge),
-          SizedBox(height: 12),
-          Text('Deseja receber comunicações de marketing?'),
+          Text(
+            'Permissão para contato',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 26),
+          ),
           SizedBox(height: 24),
+          Text(
+            'Deseja receber comunicações de informações de ofertas no seu email?',
+            style: TextStyle(fontSize: 18),
+          ),
+          SizedBox(height: 48),
           SwitchListTile(
-            title: Text('Concordo em receber marketing'),
+            title: Text(
+              'Sim, eu aceito receber informações de ofertas por email',
+              style: TextStyle(fontSize: 12),
+            ),
             value: _marketing,
             onChanged: (v) => setState(() { _marketing = v; _touched = true; }),
           ),

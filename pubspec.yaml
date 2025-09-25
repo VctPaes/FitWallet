@@ -20,6 +20,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/splash.png
+    - assets/images/bem_vindo.png
+    - assets/images/unnamed.png
 
 flutter_native_splash:
   color: "#ffffff"

@@ -11,7 +11,7 @@ Este repositório implementa o fluxo inicial funcional solicitado:
 
 ---
 
-## 📦 Como rodar o projeto
+## Como rodar o projeto
 
 1. Clone ou extraia este repositório em seu computador
 2. Instale as dependências do Flutter:
@@ -29,7 +29,7 @@ Este repositório implementa o fluxo inicial funcional solicitado:
 
 ---
 
-## 🧪 Roteiro de testes
+## Roteiro de testes
 
 1. **Primeira execução**: deve abrir Splash -> Onboarding (com dots e botões corretos)
 2. **Botão Pular**: leva diretamente à tela de Consentimento
@@ -39,7 +39,7 @@ Este repositório implementa o fluxo inicial funcional solicitado:
 
 ---
 
-## ⚖️ Observações LGPD / UX / A11Y
+## Observações LGPD / UX / A11Y
 
 - Consentimento de marketing é **opt-in** (switch desligado por padrão, botão só ativa após interação)
 - Flags de consentimento e onboarding salvas separadamente
@@ -48,7 +48,7 @@ Este repositório implementa o fluxo inicial funcional solicitado:
 
 ---
 
-## 🛠️ Estrutura de pastas
+## Estrutura de pastas
 
 ```
 lib/
@@ -67,8 +67,7 @@ lib/
 
 ---
 
-## 📌 Próximos passos sugeridos
+## Próximos passos sugeridos
 
 - Adicionar tela de Configurações para rever ou revogar consentimentos
 - Registrar consentimento em backend (com data/hora) para maior conformidade legal
-- Expandir onboarding com textos revisados por equipe de UX/jurídico

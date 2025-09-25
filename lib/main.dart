@@ -13,7 +13,14 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Fluxo Inicial',
-      theme: ThemeData(useMaterial3: true),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Color(0xFF862EC1), // Roxo personalizado
+          brightness: Brightness.light,
+        ),
+        primaryColor: Color(0xFF862EC1), // Garante o roxo como cor primária
+      ),
       initialRoute: '/',
       routes: {
         '/': (_) => SplashPage(),

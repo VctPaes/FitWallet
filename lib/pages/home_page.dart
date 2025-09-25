@@ -6,19 +6,19 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Home')),
+      appBar: AppBar(title: Text('Página Inicial')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Tela principal'),
+            Text('Bem-vindo à página inicial!'),
             ElevatedButton(
               onPressed: () async {
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.remove('onboarding_completed');
                 Navigator.of(context).pushReplacementNamed('/onboarding');
               },
-              child: Text('Ver onboarding novamente'),
+              child: Text('Repetir onboarding'),
             ),
           ],
         ),
