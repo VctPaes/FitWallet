@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/finance_service.dart';
+import '../models/refeicao.dart';
+import '../services/meal_service.dart';
 import '../services/prefs_service.dart';
-import 'add_gasto_page.dart';
-import '../models/transacao.dart';
 
 class HomePage extends StatefulWidget {
   final PrefsService prefs;
@@ -14,250 +13,134 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  
-  void _navegarParaAddGasto() async {
-    final novaTransacao = await Navigator.push<Transacao>(
-      context,
-      MaterialPageRoute(builder: (context) => const AddGastoPage()),
-    );
+  final Set<String> _preferenciasSelecionadas = {};
+  final List<String> _todasPreferencias = ['Rápido', 'Saudável', 'Vegetariano'];
 
-    if (novaTransacao != null) {
-      context.read<FinanceService>().adicionarTransacao(novaTransacao);
-    }
-  }
+  @override
+  Widget build(BuildContext context) {
+    final mealService = context.watch<MealService>();
+    final planoGerado = mealService.planoSemanal;
+    final theme = Theme.of(context);
 
-  void _navegarParaEditarGasto(int index, Transacao transacao) async {
-    final transacaoEditada = await Navigator.push<Transacao>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AddGastoPage(transacaoParaEditar: transacao),
+    return Scaffold(
+      backgroundColor: theme.colorScheme.background,
+      appBar: AppBar(
+        title: const Text('MealPrep Lite'),
       ),
-    );
-
-    if (transacaoEditada != null) {
-      context.read<FinanceService>().atualizarTransacao(index, transacaoEditada);
-    }
-  }
-
-  void _mostrarOpcoesGasto(int index) {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) {
-        return Wrap(children: [
-          ListTile(
-            leading: const Icon(Icons.edit, color: Color(0xFF059669)),
-            title: const Text('Alterar'),
-            onTap: () {
-              Navigator.pop(context);
-              final transacao = context.read<FinanceService>().transacoes[index];
-              _navegarParaEditarGasto(index, transacao);
-            },
+      endDrawer: _buildDrawer(),
+      body: ListView(
+        padding: const EdgeInsets.all(16.0),
+        children: [
+          Text(
+            '1. Escolha suas preferências',
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: theme.colorScheme.secondary,
+              fontWeight: FontWeight.bold
+            ),
           ),
-          ListTile(
-            leading: const Icon(Icons.delete, color: Colors.red),
-            title: const Text('Remover'),
-            onTap: () {
-              Navigator.pop(context);
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Confirmar Remoção'),
-                  content: const Text('Você tem certeza que deseja remover este gasto?'),
-                  actions: [
-                    TextButton(
-                      child: const Text('Cancelar'),
-                      onPressed: () => Navigator.of(ctx).pop(),
-                    ),
-                    TextButton(
-                      child: const Text('Remover', style: TextStyle(color: Colors.red)),
-                      onPressed: () {
-                        Navigator.of(ctx).pop();
-                        context.read<FinanceService>().removerTransacao(index);
-                      },
-                    ),
-                  ],
-                ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8.0,
+            children: _todasPreferencias.map((preferencia) {
+              final isSelected = _preferenciasSelecionadas.contains(preferencia);
+              return FilterChip(
+                label: Text(preferencia),
+                selected: isSelected,
+                onSelected: (bool selected) {
+                  setState(() {
+                    if (selected) {
+                      _preferenciasSelecionadas.add(preferencia);
+                    } else {
+                      _preferenciasSelecionadas.remove(preferencia);
+                    }
+                  });
+                },
+                selectedColor: theme.colorScheme.primary.withOpacity(0.3),
+                checkmarkColor: theme.colorScheme.secondary,
               );
-            },
+            }).toList(),
           ),
-        ]);
-      },
-    );
-  }
+          const SizedBox(height: 24),
 
-  void _alterarMetaSemanal() {
-    final financeService = context.read<FinanceService>();
-    final controller = TextEditingController(
-        text: financeService.metaSemanal.toStringAsFixed(2));
-        
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Alterar Meta Semanal'),
-        content: TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Nova meta',
-            prefixText: 'R\$ ',
+          Center(
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.restaurant_menu),
+              label: const Text('Gerar Cardápio Semanal'),
+              onPressed: () {
+                context.read<MealService>().gerarPlano(_preferenciasSelecionadas);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () {
-              final novoValor = double.tryParse(controller.text.replaceAll(',', '.'));
-              if (novoValor != null && novoValor > 0) {
-                financeService.atualizarMeta(novoValor);
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Salvar'),
-          ),
+          const SizedBox(height: 32),
+
+          if (planoGerado.isNotEmpty) ...[
+            Text(
+              '2. Seu plano base para a semana!',
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: theme.colorScheme.secondary,
+                fontWeight: FontWeight.bold
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...planoGerado.map((refeicao) => _buildRefeicaoCard(refeicao, theme)).toList(),
+          ]
         ],
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<FinanceService>(
-      builder: (context, financeService, child) {
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('FitWallet'),
-          ),
-          drawer: _buildDrawer(),
-          body: _buildBody(financeService),
-          floatingActionButton: FloatingActionButton(
-            onPressed: _navegarParaAddGasto,
-            backgroundColor: const Color(0xFF059669),
-            child: const Icon(Icons.add, color: Colors.white),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildBody(FinanceService financeService) {
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
-      children: [
-        _buildMetaCard(financeService),
-        const SizedBox(height: 24),
-        Text(
-          'Gastos Recentes',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: const Color(0xFF0B1220),
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        _buildTransacoesList(financeService),
-      ],
-    );
-  }
-
-  Widget _buildMetaCard(FinanceService financeService) {
-    final totalGasto = financeService.transacoes.fold(0.0, (sum, item) => sum + item.valor);
-    final meta = financeService.metaSemanal;
-    final progresso = (meta > 0) ? totalGasto / meta : 0.0;
-
+  Widget _buildRefeicaoCard(Refeicao refeicao, ThemeData theme) {
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Meta Semanal',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF0B1220),
+            Text(
+              refeicao.tipo.toUpperCase(),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.secondary.withOpacity(0.7),
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              refeicao.nome,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.secondary,
+              ),
+            ),
+            if (refeicao.tags.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6.0,
+                runSpacing: 4.0,
+                children: refeicao.tags.map((tag) => Chip(
+                  label: Text(tag),
+                  backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                  labelStyle: TextStyle(
+                    color: theme.colorScheme.primary.withOpacity(0.9),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Color(0xFF475569)),
-                  onPressed: _alterarMetaSemanal,
-                  tooltip: 'Alterar Meta',
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Gasto: R\$ ${totalGasto.toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 16, color: Color(0xFF475569)),
-                ),
-                Text(
-                  'Meta: R\$ ${meta.toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 16, color: Color(0xFF475569)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            LinearProgressIndicator(
-              value: progresso.isNaN || progresso.isInfinite ? 0 : (progresso > 1.0 ? 1.0 : progresso),
-              backgroundColor: const Color(0xFF475569).withOpacity(0.2),
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF059669)),
-              minHeight: 8,
-              borderRadius: BorderRadius.circular(4),
-            ),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  side: BorderSide.none,
+                )).toList(),
+              )
+            ]
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildTransacoesList(FinanceService financeService) {
-    final transacoes = financeService.transacoes;
-
-    if (transacoes.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 40.0),
-          child: Text(
-            'Nenhum gasto registrado ainda.\nClique no botão + para começar!',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, color: Color(0xFF475569)),
-          ),
-        ),
-      );
-    }
-    
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: transacoes.length,
-      itemBuilder: (context, index) {
-        final transacao = transacoes[index];
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 4.0),
-          child: ListTile(
-            leading: Icon(transacao.icone, color: const Color(0xFF059669)),
-            title: Text(transacao.titulo),
-            trailing: Text(
-              '- R\$ ${transacao.valor.toStringAsFixed(2)}',
-              style: const TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            onTap: () => _mostrarOpcoesGasto(index),
-          ),
-        );
-      },
     );
   }
 
@@ -268,7 +151,7 @@ class _HomePageState extends State<HomePage> {
         children: [
           DrawerHeader(
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
+              color: Theme.of(context).colorScheme.secondary,
             ),
             child: const Align(
               alignment: Alignment.bottomLeft,
@@ -301,7 +184,7 @@ class _HomePageState extends State<HomePage> {
           ListTile(
             leading: const Icon(Icons.privacy_tip_outlined),
             title: const Text('Limpar Consentimento'),
-            subtitle: const Text('Revoga consentimento da política'),
+            subtitle: const Text('Revogar aceite da política'),
             onTap: () async {
               Navigator.pop(context);
               await widget.prefs.setMarketingConsent(false);

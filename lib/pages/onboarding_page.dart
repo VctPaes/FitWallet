@@ -116,13 +116,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
     final pages = [
       _buildPage(
         imagePath: 'assets/images/onboarding1.png',
-        title: 'Bem-vindo ao FitWallet',
-        body: 'Finanças rápidas para estudantes — comece a controlar seus gastos em segundos.',
+        title: 'Bem-vindo ao MealPrep Lite',
+        body: 'Planejamento de refeições — comece a organizar suas refeições com facilidade.',
       ),
       _buildPage(
         imagePath: 'assets/images/onboarding2.png',
         title: 'Como funciona',
-        body: 'Registre gastos diários com categorias mínimas. Acompanhe sua meta semanal e veja seu progresso.',
+        body: 'Registre suas refeições diárias. Acompanhe seu progresso e veja como melhorar sua alimentação.',
       ),
       _buildPage(
         title: 'Privacidade & LGPD',
@@ -160,7 +160,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       _buildPage(
         imagePath: 'assets/images/onboarding4.png',
         title: 'Tudo pronto!',
-        body: 'Defina sua meta semanal e adicione seu primeiro gasto para começar a ter o controle.',
+        body: 'Defina suas refeições e adicione seu primeiro prato para começar a ter o controle da sua alimentação.',
       ),
     ];
 
@@ -272,10 +272,10 @@ class _PrivacyPolicyDialogState extends State<_PrivacyPolicyDialog> {
             controller: _scrollController,
             child: const Text(
               '''
-FitWallet — Política de Privacidade
+MealPrep Lite — Política de Privacidade
 
 1. Coleta de Dados:
-Coletamos apenas informações necessárias para o funcionamento do aplicativo, como preferências locais e dados de gastos salvos no próprio dispositivo. Não há envio de informações a servidores externos.
+Coletamos apenas informações necessárias para o funcionamento do aplicativo, como preferências locais e dados de refeições salvos no próprio dispositivo. Não há envio de informações a servidores externos.
 
 2. Uso dos Dados:
 Os dados são utilizados exclusivamente para personalizar a experiência do usuário e armazenar informações de forma local (no seu dispositivo).
@@ -287,7 +287,7 @@ O consentimento é dado ao aceitar esta política. O usuário pode revogar a qua
 De acordo com a LGPD, você pode solicitar a exclusão dos dados locais a qualquer momento.
 
 5. Contato:
-Em caso de dúvidas sobre a política, entre em contato com o suporte FitWallet.
+Em caso de dúvidas sobre a política, entre em contato com o suporte MealPrep Lite.
 
 Ao clicar em "Concordo", você confirma que leu e aceita esta Política de Privacidade.
               ''',

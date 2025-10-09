@@ -32,18 +32,18 @@ class _SplashPageState extends State<SplashPage> {
       backgroundColor: Theme.of(context).colorScheme.primary,
       body: Center(
         child: Semantics(
-          label: 'FitWallet Splash',
+          label: 'MealPrep Lite Splash',
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Image.asset('assets/splash.png', width: 120, height: 120),
               const SizedBox(height: 16),
               const Text(
-                'FitWallet',
+                'MealPrep Lite',
                 style: TextStyle(fontSize: 28, color: Colors.white, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
-              const Text('Finanças rápidas', style: TextStyle(color: Colors.white70)),
+              const Text('Planejamento de refeições', style: TextStyle(color: Colors.white70)),
             ],
           ),
         ),
