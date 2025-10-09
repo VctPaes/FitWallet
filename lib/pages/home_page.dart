@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../services/finance_service.dart';
 import '../services/prefs_service.dart';
+import 'add_gasto_page.dart';
+import '../models/transacao.dart';
 
 class HomePage extends StatefulWidget {
   final PrefsService prefs;
@@ -10,78 +14,307 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  
+  void _navegarParaAddGasto() async {
+    final novaTransacao = await Navigator.push<Transacao>(
+      context,
+      MaterialPageRoute(builder: (context) => const AddGastoPage()),
+    );
+
+    if (novaTransacao != null) {
+      context.read<FinanceService>().adicionarTransacao(novaTransacao);
+    }
+  }
+
+  void _navegarParaEditarGasto(int index, Transacao transacao) async {
+    final transacaoEditada = await Navigator.push<Transacao>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddGastoPage(transacaoParaEditar: transacao),
+      ),
+    );
+
+    if (transacaoEditada != null) {
+      context.read<FinanceService>().atualizarTransacao(index, transacaoEditada);
+    }
+  }
+
+  void _mostrarOpcoesGasto(int index) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return Wrap(children: [
+          ListTile(
+            leading: const Icon(Icons.edit, color: Color(0xFF059669)),
+            title: const Text('Alterar'),
+            onTap: () {
+              Navigator.pop(context);
+              final transacao = context.read<FinanceService>().transacoes[index];
+              _navegarParaEditarGasto(index, transacao);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete, color: Colors.red),
+            title: const Text('Remover'),
+            onTap: () {
+              Navigator.pop(context);
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Confirmar Remoção'),
+                  content: const Text('Você tem certeza que deseja remover este gasto?'),
+                  actions: [
+                    TextButton(
+                      child: const Text('Cancelar'),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                    TextButton(
+                      child: const Text('Remover', style: TextStyle(color: Colors.red)),
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        context.read<FinanceService>().removerTransacao(index);
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ]);
+      },
+    );
+  }
+
+  void _alterarMetaSemanal() {
+    final financeService = context.read<FinanceService>();
+    final controller = TextEditingController(
+        text: financeService.metaSemanal.toStringAsFixed(2));
+        
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Alterar Meta Semanal'),
+        content: TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Nova meta',
+            prefixText: 'R\$ ',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () {
+              final novoValor = double.tryParse(controller.text.replaceAll(',', '.'));
+              if (novoValor != null && novoValor > 0) {
+                financeService.atualizarMeta(novoValor);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('FitWallet'),
-      ),
-      drawer: Drawer(
-        child: ListView(
+    return Consumer<FinanceService>(
+      builder: (context, financeService, child) {
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('FitWallet'),
+          ),
+          drawer: _buildDrawer(),
+          body: _buildBody(financeService),
+          floatingActionButton: FloatingActionButton(
+            onPressed: _navegarParaAddGasto,
+            backgroundColor: const Color(0xFF059669),
+            child: const Icon(Icons.add, color: Colors.white),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBody(FinanceService financeService) {
+    return ListView(
+      padding: const EdgeInsets.all(16.0),
+      children: [
+        _buildMetaCard(financeService),
+        const SizedBox(height: 24),
+        Text(
+          'Gastos Recentes',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: const Color(0xFF0B1220),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        _buildTransacoesList(financeService),
+      ],
+    );
+  }
+
+  Widget _buildMetaCard(FinanceService financeService) {
+    final totalGasto = financeService.transacoes.fold(0.0, (sum, item) => sum + item.valor);
+    final meta = financeService.metaSemanal;
+    final progresso = (meta > 0) ? totalGasto / meta : 0.0;
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              child: const Align(
-                alignment: Alignment.bottomLeft,
-                child: Text(
-                  'Configurações',
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Meta Semanal',
                   style: TextStyle(
-                    fontSize: 20,
-                    color: Colors.white,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
+                    color: const Color(0xFF0B1220),
                   ),
                 ),
-              ),
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Color(0xFF475569)),
+                  onPressed: _alterarMetaSemanal,
+                  tooltip: 'Alterar Meta',
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.refresh),
-              title: const Text('Refazer Onboarding'),
-              subtitle: const Text('Sem limpar consentimento'),
-              onTap: () async {
-                Navigator.pop(context);
-                await widget.prefs.setOnboardingCompleted(false);
-
-                
-                bool currentConsent = widget.prefs.getMarketingConsent();
-
-                Navigator.of(context).pushReplacementNamed(
-                  '/onboarding',
-                  arguments: {
-                    'startAtPage': 0,
-                    'initialConsent': currentConsent,
-                  },
-                );
-              },
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Gasto: R\$ ${totalGasto.toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 16, color: Color(0xFF475569)),
+                ),
+                Text(
+                  'Meta: R\$ ${meta.toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 16, color: Color(0xFF475569)),
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.privacy_tip_outlined),
-              title: const Text('Limpar Consentimento'),
-              subtitle: const Text('Revogar aceite da política'),
-              onTap: () async {
-                Navigator.pop(context);
-
-                await widget.prefs.setMarketingConsent(false);
-
-                Navigator.of(context).pushReplacementNamed(
-                  '/onboarding',
-                  arguments: {
-                    'startAtPage': 2,
-                    'initialConsent': false,
-                  },
-                );
-              },
+            const SizedBox(height: 12),
+            LinearProgressIndicator(
+              value: progresso.isNaN || progresso.isInfinite ? 0 : (progresso > 1.0 ? 1.0 : progresso),
+              backgroundColor: const Color(0xFF475569).withOpacity(0.2),
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF059669)),
+              minHeight: 8,
+              borderRadius: BorderRadius.circular(4),
             ),
           ],
         ),
       ),
-      body: const Center(
-        child: Text(
-          'Bem-vindo ao FitWallet 💰\n\nControle suas finanças de forma simples e rápida!',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 18),
+    );
+  }
+
+  Widget _buildTransacoesList(FinanceService financeService) {
+    final transacoes = financeService.transacoes;
+
+    if (transacoes.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 40.0),
+          child: Text(
+            'Nenhum gasto registrado ainda.\nClique no botão + para começar!',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16, color: Color(0xFF475569)),
+          ),
         ),
+      );
+    }
+    
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: transacoes.length,
+      itemBuilder: (context, index) {
+        final transacao = transacoes[index];
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 4.0),
+          child: ListTile(
+            leading: Icon(transacao.icone, color: const Color(0xFF059669)),
+            title: Text(transacao.titulo),
+            trailing: Text(
+              '- R\$ ${transacao.valor.toStringAsFixed(2)}',
+              style: const TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            onTap: () => _mostrarOpcoesGasto(index),
+          ),
+        );
+      },
+    );
+  }
+
+  Drawer _buildDrawer() {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            child: const Align(
+              alignment: Alignment.bottomLeft,
+              child: Text(
+                'Configurações',
+                style: TextStyle(
+                  fontSize: 20,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.refresh),
+            title: const Text('Refazer Onboarding'),
+            onTap: () async {
+              Navigator.pop(context);
+              await widget.prefs.setOnboardingCompleted(false);
+              bool currentConsent = widget.prefs.getMarketingConsent();
+              Navigator.of(context).pushReplacementNamed(
+                '/onboarding',
+                arguments: {
+                  'startAtPage': 0,
+                  'initialConsent': currentConsent,
+                },
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.privacy_tip_outlined),
+            title: const Text('Limpar Consentimento'),
+            subtitle: const Text('Revoga consentimento da política'),
+            onTap: () async {
+              Navigator.pop(context);
+              await widget.prefs.setMarketingConsent(false);
+              Navigator.of(context).pushReplacementNamed(
+                '/onboarding',
+                arguments: {
+                  'startAtPage': 2,
+                  'initialConsent': false,
+                },
+              );
+            },
+          ),
+        ],
       ),
     );
   }

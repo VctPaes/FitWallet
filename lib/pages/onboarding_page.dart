@@ -14,36 +14,25 @@ class _OnboardingPageState extends State<OnboardingPage> {
   int _index = 0;
   bool _policyRead = false;
   bool _policyAgreed = false;
-  bool _initialized = false;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    if (_initialized) return; 
-
-    final args =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-
-    final initialConsent = widget.prefs.getMarketingConsent();
+  void initState() {
+    super.initState();
+    _policyAgreed = widget.prefs.getMarketingConsent();
+    _policyRead = _policyAgreed;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {
-        _policyRead = initialConsent;
-        _policyAgreed = initialConsent;
-      });
-
+      if (!mounted) return;
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       if (args != null) {
         final startAtPage = args['startAtPage'] as int? ?? 0;
-        final forcedConsent = args['initialConsent'] as bool? ?? initialConsent;
-
+        final forcedConsent = args['initialConsent'] as bool? ?? _policyAgreed;
         _controller.jumpToPage(startAtPage);
         setState(() {
           _policyRead = forcedConsent;
           _policyAgreed = forcedConsent;
         });
       }
-      _initialized = true;
     });
   }
 
@@ -56,7 +45,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
     } else {
       await widget.prefs.setMarketingConsent(_policyAgreed);
       await widget.prefs.setOnboardingCompleted(true);
-      Navigator.of(context).pushReplacementNamed('/home');
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/home');
+      }
     }
   }
 
@@ -69,39 +60,218 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   Future<void> _showPrivacyPolicy() async {
-    bool reachedEnd = false;
-    final controller = ScrollController();
-
-    await showDialog(
+    final bool? userAgreed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setStateDialog) {
-          return AlertDialog(
-            title: const Text('Política de Privacidade'),
-            content: SizedBox(
-              width: double.maxFinite,
-              height: 400,
-              child: Scrollbar(
-                thumbVisibility: true,
-                controller: controller,
-                child: NotificationListener<ScrollNotification>(
-                  onNotification: (scrollNotification) {
-                    final metrics = scrollNotification.metrics;
-                    if (metrics.pixels >= metrics.maxScrollExtent &&
-                        !reachedEnd) {
-                      setStateDialog(() {
-                        reachedEnd = true;
-                      });
-                    }
-                    return false;
-                  },
-                  child: SingleChildScrollView(
-                    controller: controller,
-                    child: const Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text(
-                        '''
+      builder: (ctx) => const _PrivacyPolicyDialog(),
+    );
+
+    if (userAgreed == true) {
+      setState(() {
+        _policyRead = true;
+        _policyAgreed = true;
+      });
+    }
+  }
+
+  Widget _buildPage({
+    String? imagePath,
+    required String title,
+    required String body,
+    Widget? extra,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (imagePath != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 40.0),
+              child: Image.asset(
+                imagePath,
+                height: 220,
+              ),
+            ),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            body,
+            style: Theme.of(context).textTheme.bodyLarge,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          if (extra != null) extra,
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = [
+      _buildPage(
+        imagePath: 'assets/images/onboarding1.png',
+        title: 'Bem-vindo ao FitWallet',
+        body: 'Finanças rápidas para estudantes — comece a controlar seus gastos em segundos.',
+      ),
+      _buildPage(
+        imagePath: 'assets/images/onboarding2.png',
+        title: 'Como funciona',
+        body: 'Registre gastos diários com categorias mínimas. Acompanhe sua meta semanal e veja seu progresso.',
+      ),
+      _buildPage(
+        title: 'Privacidade & LGPD',
+        body: 'Antes de continuar, por favor, leia e aceite nossa Política de Privacidade.',
+        extra: Column(
+          children: [
+            ElevatedButton.icon(
+              icon: const Icon(Icons.privacy_tip_outlined),
+              label: const Text('Ler Política de Privacidade'),
+              onPressed: _showPrivacyPolicy,
+            ),
+            const SizedBox(height: 12),
+            Opacity(
+              opacity: _policyRead ? 1.0 : 0.5,
+              child: SwitchListTile(
+                title: const Text('Concordo com a Política de Privacidade'),
+                value: _policyAgreed,
+                onChanged: _policyRead
+                    ? (value) => setState(() => _policyAgreed = value)
+                    : null,
+              ),
+            ),
+            if (!_policyRead)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Você precisa ler a política até o final para poder aceitar.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                ),
+              ),
+          ],
+        ),
+      ),
+      _buildPage(
+        imagePath: 'assets/images/onboarding4.png',
+        title: 'Tudo pronto!',
+        body: 'Defina sua meta semanal e adicione seu primeiro gasto para começar a ter o controle.',
+      ),
+    ];
+
+    final isPrivacyPageBlocked = (_index == 2 && !_policyAgreed);
+
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              height: 56,
+              alignment: Alignment.centerRight,
+              child: _index < 2
+                  ? TextButton(
+                      onPressed: _skip,
+                      child: const Text('PULAR'),
+                    )
+                  : const SizedBox(height: 56),
+            ),
+            Expanded(
+              child: PageView(
+                controller: _controller,
+                onPageChanged: (i) => setState(() => _index = i),
+                physics: isPrivacyPageBlocked
+                    ? const NeverScrollableScrollPhysics()
+                    : const AlwaysScrollableScrollPhysics(),
+                children: pages,
+              ),
+            ),
+            Container(
+              height: 80,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: _index > 0
+                        ? () => _controller.previousPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.ease,
+                            )
+                        : null,
+                    child: const Text('VOLTAR'),
+                  ),
+                  Row(
+                    children: List.generate(
+                      pages.length,
+                      (i) => Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: CircleAvatar(
+                          radius: 5,
+                          backgroundColor: i == _index
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.grey.shade300,
+                        ),
+                      ),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: isPrivacyPageBlocked ? null : _next,
+                    child: Text(_index < pages.length - 1 ? 'AVANÇAR' : 'FINALIZAR'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PrivacyPolicyDialog extends StatefulWidget {
+  const _PrivacyPolicyDialog();
+  @override
+  State<_PrivacyPolicyDialog> createState() => _PrivacyPolicyDialogState();
+}
+class _PrivacyPolicyDialogState extends State<_PrivacyPolicyDialog> {
+  bool _reachedEnd = false;
+  final ScrollController _scrollController = ScrollController();
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+  void _onScroll() {
+    if (!_reachedEnd && _scrollController.position.pixels >= _scrollController.position.maxScrollExtent) {
+      setState(() {
+        _reachedEnd = true;
+      });
+    }
+  }
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Política de Privacidade'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Scrollbar(
+          thumbVisibility: true,
+          controller: _scrollController,
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            child: const Text(
+              '''
 FitWallet — Política de Privacidade
 
 1. Coleta de Dados:
@@ -119,202 +289,25 @@ De acordo com a LGPD, você pode solicitar a exclusão dos dados locais a qualqu
 5. Contato:
 Em caso de dúvidas sobre a política, entre em contato com o suporte FitWallet.
 
-Ao rolar até o fim e clicar em "Concordo com os Termos", você reconhece que leu e aceita esta política.
-                        ''',
-                        style: TextStyle(fontSize: 14),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+Ao clicar em "Concordo", você confirma que leu e aceita esta Política de Privacidade.
+              ''',
+              style: TextStyle(fontSize: 14),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Cancelar'),
-              ),
-              ElevatedButton(
-                onPressed: reachedEnd
-                    ? () async {
-                        await widget.prefs.setMarketingConsent(true);
-
-                        if (mounted) {
-                          setState(() {
-                            _policyRead = true;
-                            _policyAgreed = true;
-                          });
-                        }
-
-                        Navigator.of(ctx).pop();
-                      }
-                    : null,
-                child: const Text('Concordo com os Termos'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-
-  }
-
-  Widget _buildPage({
-    required String title,
-    required String body,
-    Widget? extra,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 16),
-          Text(
-            body,
-            style: Theme.of(context).textTheme.bodyMedium,
-            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
-          if (extra != null) extra,
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final pages = [
-      _buildPage(
-        title: 'Bem-vindo ao FitWallet',
-        body:
-            'Finanças rápidas para estudantes — comece a controlar seus gastos em segundos.',
-      ),
-      _buildPage(
-        title: 'Como funciona',
-        body:
-            'Registre gastos diários com categorias mínimas. Acompanhe sua meta semanal e veja seu progresso.',
-      ),
-      _buildPage(
-        title: 'Privacidade & LGPD',
-        body:
-            'Antes de continuar, leia e aceite nossa Política de Privacidade.',
-        extra: Column(
-          children: [
-            ElevatedButton.icon(
-              icon: const Icon(Icons.privacy_tip_outlined),
-              label: const Text('Ver Política de Privacidade'),
-              onPressed: _showPrivacyPolicy,
-            ),
-            const SizedBox(height: 12),
-            Opacity(
-              opacity: _policyRead ? 1.0 : 0.6,
-              child: SwitchListTile(
-                title: const Text('Concordo com a Política de Privacidade'),
-                value: _policyAgreed,
-                onChanged: _policyRead
-                    ? (v) async {
-                        await widget.prefs.setMarketingConsent(v);
-                        final saved = widget.prefs.getMarketingConsent();
-                        setState(() {
-                          _policyAgreed = saved;
-                        });
-                      }
-                    : null,
-              ),
-            ),
-            if (!_policyRead)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Text(
-                  'Você precisa ler a política até o final antes de poder aceitar.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.redAccent),
-                ),
-              ),
-          ],
         ),
       ),
-      _buildPage(
-        title: 'Primeiros passos',
-        body:
-            'Defina sua meta semanal simples e adicione seu primeiro gasto para começar.',
-      ),
-    ];
-
-    final ScrollPhysics pagePhysics = (_index == 2 && !_policyAgreed)
-        ? const NeverScrollableScrollPhysics()
-        : const AlwaysScrollableScrollPhysics();
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Onboarding'),
-        actions: [
-          if (_index < 2)
-            TextButton(
-              onPressed: _skip,
-              child:
-                  const Text('Pular', style: TextStyle(color: Colors.white)),
-            )
-          else
-            const SizedBox(width: 60),
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: PageView(
-              controller: _controller,
-              onPageChanged: (i) => setState(() => _index = i),
-              physics: pagePhysics,
-              children: pages,
-            ),
-          ),
-          Container(
-            height: 80,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: _index > 0
-                      ? () => _controller.previousPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.ease,
-                          )
-                      : null,
-                  child: const Text('Voltar'),
-                ),
-                Row(
-                  children: List.generate(
-                    4,
-                    (i) => Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: i == _index
-                              ? Theme.of(context).colorScheme.primary
-                              : Colors.grey,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: ElevatedButton(
-                    onPressed: _index == 2 && !_policyAgreed ? null : _next,
-                    child: Text(_index < 3 ? 'Avançar' : 'Finalizar'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: _reachedEnd
+              ? () => Navigator.of(context).pop(true)
+              : null,
+          child: const Text('Concordo'),
+        ),
+      ],
     );
   }
 }

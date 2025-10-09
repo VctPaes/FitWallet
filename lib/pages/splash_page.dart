@@ -36,14 +36,14 @@ class _SplashPageState extends State<SplashPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset('assets/icon_wallet_check.png', width: 120, height: 120),
+              Image.asset('assets/splash.png', width: 120, height: 120),
               const SizedBox(height: 16),
               const Text(
                 'FitWallet',
                 style: TextStyle(fontSize: 28, color: Colors.white, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
-              const Text('finanças rápidas', style: TextStyle(color: Colors.white70)),
+              const Text('Finanças rápidas', style: TextStyle(color: Colors.white70)),
             ],
           ),
         ),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'services/finance_service.dart';
 import 'services/prefs_service.dart';
 import 'pages/splash_page.dart';
 import 'pages/home_page.dart';
@@ -8,7 +10,12 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await PrefsService.init();
 
-  runApp(FitWalletApp(prefs: prefs));
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => FinanceService(),
+      child: FitWalletApp(prefs: prefs),
+    ),
+  );
 }
 
 class FitWalletApp extends StatelessWidget {
