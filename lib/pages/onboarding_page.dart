@@ -12,22 +12,60 @@ class OnboardingPage extends StatefulWidget {
 class _OnboardingPageState extends State<OnboardingPage> {
   final PageController _controller = PageController();
   int _index = 0;
-  bool _policyRead = false; // controle se a política foi lida até o fim
+  bool _policyRead = false;
+  bool _policyAgreed = false;
+  bool _initialized = false;
 
-  void _next() {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (_initialized) return; 
+
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+    final initialConsent = widget.prefs.getMarketingConsent();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      setState(() {
+        _policyRead = initialConsent;
+        _policyAgreed = initialConsent;
+      });
+
+      if (args != null) {
+        final startAtPage = args['startAtPage'] as int? ?? 0;
+        final forcedConsent = args['initialConsent'] as bool? ?? initialConsent;
+
+        _controller.jumpToPage(startAtPage);
+        setState(() {
+          _policyRead = forcedConsent;
+          _policyAgreed = forcedConsent;
+        });
+      }
+      _initialized = true;
+    });
+  }
+
+  Future<void> _next() async {
     if (_index < 3) {
       _controller.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.ease,
       );
     } else {
-      widget.prefs.setOnboardingCompleted(true);
-      Navigator.of(context).pushReplacementNamed('/consent');
+      await widget.prefs.setMarketingConsent(_policyAgreed);
+      await widget.prefs.setOnboardingCompleted(true);
+      Navigator.of(context).pushReplacementNamed('/home');
     }
   }
 
   void _skip() {
-    Navigator.of(context).pushReplacementNamed('/consent');
+    _controller.animateToPage(
+      2,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOut,
+    );
   }
 
   Future<void> _showPrivacyPolicy() async {
@@ -38,16 +76,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setState) {
-          controller.addListener(() {
-            if (controller.offset >= controller.position.maxScrollExtent &&
-                !reachedEnd) {
-              setState(() {
-                reachedEnd = true;
-              });
-            }
-          });
-
+        builder: (ctx, setStateDialog) {
           return AlertDialog(
             title: const Text('Política de Privacidade'),
             content: SizedBox(
@@ -56,10 +85,23 @@ class _OnboardingPageState extends State<OnboardingPage> {
               child: Scrollbar(
                 thumbVisibility: true,
                 controller: controller,
-                child: SingleChildScrollView(
-                  controller: controller,
-                  child: const Text(
-                    '''
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: (scrollNotification) {
+                    final metrics = scrollNotification.metrics;
+                    if (metrics.pixels >= metrics.maxScrollExtent &&
+                        !reachedEnd) {
+                      setStateDialog(() {
+                        reachedEnd = true;
+                      });
+                    }
+                    return false;
+                  },
+                  child: SingleChildScrollView(
+                    controller: controller,
+                    child: const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: Text(
+                        '''
 FitWallet — Política de Privacidade
 
 1. Coleta de Dados:
@@ -69,7 +111,7 @@ Coletamos apenas informações necessárias para o funcionamento do aplicativo, 
 Os dados são utilizados exclusivamente para personalizar a experiência do usuário e armazenar informações de forma local (no seu dispositivo).
 
 3. Consentimento:
-O consentimento de marketing é opcional. O usuário pode revogar a qualquer momento em "Configurações" → "Limpar Consentimento".
+O consentimento é dado ao aceitar esta política. O usuário pode revogar a qualquer momento em "Limpar Consentimento" no menu lateral.
 
 4. Direitos do Usuário:
 De acordo com a LGPD, você pode solicitar a exclusão dos dados locais a qualquer momento.
@@ -78,8 +120,10 @@ De acordo com a LGPD, você pode solicitar a exclusão dos dados locais a qualqu
 Em caso de dúvidas sobre a política, entre em contato com o suporte FitWallet.
 
 Ao rolar até o fim e clicar em "Concordo com os Termos", você reconhece que leu e aceita esta política.
-                    ''',
-                    style: TextStyle(fontSize: 14),
+                        ''',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -91,8 +135,16 @@ Ao rolar até o fim e clicar em "Concordo com os Termos", você reconhece que le
               ),
               ElevatedButton(
                 onPressed: reachedEnd
-                    ? () {
-                        setState(() => _policyRead = true);
+                    ? () async {
+                        await widget.prefs.setMarketingConsent(true);
+
+                        if (mounted) {
+                          setState(() {
+                            _policyRead = true;
+                            _policyAgreed = true;
+                          });
+                        }
+
                         Navigator.of(ctx).pop();
                       }
                     : null,
@@ -104,10 +156,13 @@ Ao rolar até o fim e clicar em "Concordo com os Termos", você reconhece que le
       ),
     );
 
-    setState(() {});
   }
 
-  Widget _buildPage({required String title, required String body, Widget? extra}) {
+  Widget _buildPage({
+    required String title,
+    required String body,
+    Widget? extra,
+  }) {
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Column(
@@ -115,9 +170,11 @@ Ao rolar até o fim e clicar em "Concordo com os Termos", você reconhece que le
         children: [
           Text(title, style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 16),
-          Text(body,
-              style: Theme.of(context).textTheme.bodyMedium,
-              textAlign: TextAlign.center),
+          Text(
+            body,
+            style: Theme.of(context).textTheme.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 16),
           if (extra != null) extra,
         ],
@@ -141,7 +198,7 @@ Ao rolar até o fim e clicar em "Concordo com os Termos", você reconhece que le
       _buildPage(
         title: 'Privacidade & LGPD',
         body:
-            'Para usar o FitWallet, é necessário ler e aceitar nossa Política de Privacidade.',
+            'Antes de continuar, leia e aceite nossa Política de Privacidade.',
         extra: Column(
           children: [
             ElevatedButton.icon(
@@ -149,17 +206,32 @@ Ao rolar até o fim e clicar em "Concordo com os Termos", você reconhece que le
               label: const Text('Ver Política de Privacidade'),
               onPressed: _showPrivacyPolicy,
             ),
-            const SizedBox(height: 8),
-            Text(
-              _policyRead
-                  ? '✔ Política lida e aceita.'
-                  : 'Você deve ler a política até o final para prosseguir.',
-              style: TextStyle(
-                color: _policyRead
-                    ? Colors.green.shade700
-                    : Theme.of(context).colorScheme.error,
+            const SizedBox(height: 12),
+            Opacity(
+              opacity: _policyRead ? 1.0 : 0.6,
+              child: SwitchListTile(
+                title: const Text('Concordo com a Política de Privacidade'),
+                value: _policyAgreed,
+                onChanged: _policyRead
+                    ? (v) async {
+                        await widget.prefs.setMarketingConsent(v);
+                        final saved = widget.prefs.getMarketingConsent();
+                        setState(() {
+                          _policyAgreed = saved;
+                        });
+                      }
+                    : null,
               ),
             ),
+            if (!_policyRead)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Você precisa ler a política até o final antes de poder aceitar.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.redAccent),
+                ),
+              ),
           ],
         ),
       ),
@@ -170,17 +242,22 @@ Ao rolar até o fim e clicar em "Concordo com os Termos", você reconhece que le
       ),
     ];
 
+    final ScrollPhysics pagePhysics = (_index == 2 && !_policyAgreed)
+        ? const NeverScrollableScrollPhysics()
+        : const AlwaysScrollableScrollPhysics();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Onboarding'),
         actions: [
-          TextButton(
-            onPressed: _skip,
-            child: const Text(
-              'Pular',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
+          if (_index < 2)
+            TextButton(
+              onPressed: _skip,
+              child:
+                  const Text('Pular', style: TextStyle(color: Colors.white)),
+            )
+          else
+            const SizedBox(width: 60),
         ],
       ),
       body: Column(
@@ -189,6 +266,7 @@ Ao rolar até o fim e clicar em "Concordo com os Termos", você reconhece que le
             child: PageView(
               controller: _controller,
               onPageChanged: (i) => setState(() => _index = i),
+              physics: pagePhysics,
               children: pages,
             ),
           ),
@@ -228,9 +306,7 @@ Ao rolar até o fim e clicar em "Concordo com os Termos", você reconhece que le
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: ElevatedButton(
-                    onPressed: _index == 2 && !_policyRead
-                        ? null // bloqueia avanço até ler a política
-                        : _next,
+                    onPressed: _index == 2 && !_policyAgreed ? null : _next,
                     child: Text(_index < 3 ? 'Avançar' : 'Finalizar'),
                   ),
                 ),

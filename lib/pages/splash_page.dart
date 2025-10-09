@@ -18,11 +18,11 @@ class _SplashPageState extends State<SplashPage> {
   }
 
   void _decideNext() {
-    final done = widget.prefs.onboardingCompleted;
-    if (!done) {
-      Navigator.of(context).pushReplacementNamed('/onboarding');
-    } else {
+    final done = widget.prefs.getOnboardingCompleted();
+    if (done) {
       Navigator.of(context).pushReplacementNamed('/home');
+    } else {
+      Navigator.of(context).pushReplacementNamed('/onboarding');
     }
   }
 

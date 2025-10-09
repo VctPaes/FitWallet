@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class GoToAccessPage extends StatelessWidget {
   final VoidCallback? onFinish;
-  GoToAccessPage({this.onFinish});
+  const GoToAccessPage({super.key, this.onFinish});
 
   Future<void> _finish(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
@@ -20,9 +20,9 @@ class GoToAccessPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Pronto para começar?'),
-            SizedBox(height: 24),
-            ElevatedButton(onPressed: () => _finish(context), child: Text('Ir para o acesso'))
+            const Text('Pronto para começar?'),
+            const SizedBox(height: 24),
+            ElevatedButton(onPressed: () => _finish(context), child: const Text('Ir para o acesso'))
           ],
         ),
       ),

@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'services/prefs_service.dart';
 import 'pages/splash_page.dart';
 import 'pages/home_page.dart';
 import 'pages/onboarding_page.dart';
-import 'pages/consent_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await PrefsService.init();
-  // lock orientation optional
-  // SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   runApp(FitWalletApp(prefs: prefs));
 }
@@ -28,7 +24,7 @@ class FitWalletApp extends StatelessWidget {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: emerald,
       primary: emerald,
-      secondary: navy,
+      secondary: gray,
       background: Colors.white,
       surface: Colors.white,
     );
@@ -48,7 +44,6 @@ class FitWalletApp extends StatelessWidget {
       routes: {
         '/': (ctx) => SplashPage(prefs: prefs),
         '/onboarding': (ctx) => OnboardingPage(prefs: prefs),
-        '/consent': (ctx) => ConsentPage(prefs: prefs),
         '/home': (ctx) => HomePage(prefs: prefs),
       },
     );
