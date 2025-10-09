@@ -1,31 +1,55 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'services/prefs_service.dart';
 import 'pages/splash_page.dart';
-import 'pages/onboarding_page.dart';
 import 'pages/home_page.dart';
+import 'pages/onboarding_page.dart';
+import 'pages/consent_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(MyApp());
+  final prefs = await PrefsService.init();
+  // lock orientation optional
+  // SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
+  runApp(FitWalletApp(prefs: prefs));
 }
 
-class MyApp extends StatelessWidget {
+class FitWalletApp extends StatelessWidget {
+  final PrefsService prefs;
+  const FitWalletApp({super.key, required this.prefs});
+
+  static const emerald = Color(0xFF059669);
+  static const navy = Color(0xFF0B1220);
+  static const gray = Color(0xFF475569);
+
   @override
   Widget build(BuildContext context) {
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: emerald,
+      primary: emerald,
+      secondary: navy,
+      background: Colors.white,
+      surface: Colors.white,
+    );
+
     return MaterialApp(
-      title: 'Fluxo Inicial',
+      title: 'FitWallet — finanças rápidas',
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Color(0xFF862EC1), // Roxo personalizado
-          brightness: Brightness.light,
+        colorScheme: colorScheme,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: navy,
+          foregroundColor: Colors.white,
         ),
-        primaryColor: Color(0xFF862EC1), // Garante o roxo como cor primária
       ),
+      debugShowCheckedModeBanner: false,
       initialRoute: '/',
       routes: {
-        '/': (_) => SplashPage(),
-        '/onboarding': (_) => OnboardingPage(),
-        '/home': (_) => HomePage(),
+        '/': (ctx) => SplashPage(prefs: prefs),
+        '/onboarding': (ctx) => OnboardingPage(prefs: prefs),
+        '/consent': (ctx) => ConsentPage(prefs: prefs),
+        '/home': (ctx) => HomePage(prefs: prefs),
       },
     );
   }

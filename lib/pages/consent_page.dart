@@ -1,55 +1,63 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/prefs_service.dart';
 
 class ConsentPage extends StatefulWidget {
-  final VoidCallback? onConsentSaved;
-  ConsentPage({this.onConsentSaved});
+  final PrefsService prefs;
+  const ConsentPage({super.key, required this.prefs});
 
   @override
-  _ConsentPageState createState() => _ConsentPageState();
+  State<ConsentPage> createState() => _ConsentPageState();
 }
 
 class _ConsentPageState extends State<ConsentPage> {
   bool _marketing = false;
   bool _touched = false;
 
-  Future<void> _saveConsent() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('marketing_consent', _marketing);
-    widget.onConsentSaved?.call();
+  @override
+  void initState() {
+    super.initState();
+    _marketing = widget.prefs.marketingConsent;
+  }
+
+  void _confirm() async {
+    await widget.prefs.setMarketingConsent(_marketing);
+    await widget.prefs.setOnboardingCompleted(true);
+    Navigator.of(context).pushReplacementNamed('/home');
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            'Permissão para contato',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 26),
-          ),
-          SizedBox(height: 24),
-          Text(
-            'Deseja receber comunicações de informações de ofertas no seu email?',
-            style: TextStyle(fontSize: 18),
-          ),
-          SizedBox(height: 48),
-          SwitchListTile(
-            title: Text(
-              'Sim, eu aceito receber informações de ofertas por email',
-              style: TextStyle(fontSize: 12),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Consentimento'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Text(
+              'Política de Privacidade — LGPD (resumo)',
+              style: Theme.of(context).textTheme.titleMedium,
             ),
-            value: _marketing,
-            onChanged: (v) => setState(() { _marketing = v; _touched = true; }),
-          ),
-          SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: _touched ? () async { await _saveConsent(); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Consentimento salvo'))); } : null,
-            child: Text('Confirmar'),
-          )
-        ],
+            const SizedBox(height: 12),
+            const Text(
+              'Coletamos apenas o necessário para a funcionalidade local do app. '
+              'O consentimento para marketing é opcional e pode ser revogado nas configurações.',
+            ),
+            const SizedBox(height: 20),
+            SwitchListTile(
+              title: const Text('Concordo em receber informações/marketing'),
+              value: _marketing,
+              onChanged: (v) => setState(() { _marketing = v; _touched = true; }),
+            ),
+            const Spacer(),
+            ElevatedButton(
+              onPressed: _touched ? _confirm : null,
+              child: const Text('Confirmar'),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
       ),
     );
   }

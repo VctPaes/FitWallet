@@ -1,31 +1,23 @@
-name: fluxo_inicial
-description: Fluxo inicial com splash, onboarding e persistencia
-publish_to: 'none'
+name: fit_wallet
+description: FitWallet — finanças rápidas. Registrar gastos diários com categorias mínimas.
+publish_to: "none"
 
 environment:
-  sdk: '>=2.18.0 <3.0.0'
+  sdk: ">=2.18.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  shared_preferences: ^2.1.0
-  flutter_native_splash: ^2.2.6
-  smooth_page_indicator: ^1.0.0
+  shared_preferences: ^2.0.15
+  # use the packages you already had; add others as needed
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_lints: ^2.0.0
 
 flutter:
   uses-material-design: true
   assets:
+    - assets/icon_wallet_check.png
     - assets/splash.png
-    - assets/images/bem_vindo.png
-    - assets/images/unnamed.png
-
-flutter_native_splash:
-  color: "#ffffff"
-  image: assets/splash.png
-  android: true
-  ios: true
-  web: false
