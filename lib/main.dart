@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'services/meal_service.dart';
+import 'services/finance_service.dart';
 import 'services/prefs_service.dart';
 import 'pages/splash_page.dart';
 import 'pages/home_page.dart';
@@ -12,37 +12,37 @@ void main() async {
 
   runApp(
     ChangeNotifierProvider(
-      create: (context) => MealService(),
-      child: MealPrepLiteApp(prefs: prefs),
+      create: (context) => FinanceService(),
+      child: FitWalletApp(prefs: prefs),
     ),
   );
 }
 
-class MealPrepLiteApp extends StatelessWidget {
+class FitWalletApp extends StatelessWidget {
   final PrefsService prefs;
-  const MealPrepLiteApp({super.key, required this.prefs});
+  const FitWalletApp({super.key, required this.prefs});
 
-  static const green = Color(0xFF22C55E);
-  static const cream = Color(0xFFFEF3C7);
-  static const brown = Color(0xFF78350F);
+  static const emerald = Color(0xFF059669);
+  static const navy = Color(0xFF0B1220);
+  static const gray = Color(0xFF475569);
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: green,
-      primary: green,
-      secondary: brown,
+      seedColor: emerald,
+      primary: emerald,
+      secondary: gray,
       background: Colors.white,
       surface: Colors.white,
     );
 
     return MaterialApp(
-      title: 'MealPrep Lite — Planejamento de refeições',
+      title: 'FitWallet — finanças rápidas',
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: colorScheme,
         appBarTheme: const AppBarTheme(
-          backgroundColor: brown,
+          backgroundColor: navy,
           foregroundColor: Colors.white,
         ),
       ),
