@@ -21,14 +21,11 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-<<<<<<< HEAD
-        applicationId = "com.lau.mealprep_lite"
-=======
+
+
         applicationId = "com.victor.fitwallet"
->>>>>>> f8ecd47592b4a50ef4b2f659e4738870863ac888
-=======
-        applicationId = "com.example.fluxo_inicial"
->>>>>>> parent of d04d20b (Adição do projeto no repositório)
+        versionName = "1.0"
+        versionCode = 1
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
