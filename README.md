@@ -64,10 +64,3 @@ lib/
  └─ services/
      └─ prefs_service.dart
 ```
-
----
-
-## Próximos passos sugeridos
-
-- Adicionar tela de Configurações para rever ou revogar consentimentos
-- Registrar consentimento em backend (com data/hora) para maior conformidade legal
