@@ -46,7 +46,6 @@ Este projeto utiliza um conjunto de pacotes modernos e recomendados para o desen
 * **Seleção de Imagem (Câmera/Galeria):** [image_picker](https://pub.dev/packages/image_picker)
 * **Processamento de Imagem:** [flutter_image_compress](https://pub.dev/packages/flutter_image_compress)
 * **Gerenciamento de Caminhos de Arquivo:** [path_provider](https://pub.dev/packages/path_provider)
-* **Testes:** [flutter_test](https://api.flutter.dev/flutter/flutter_test/flutter_test-library.html) (Testes de Unidade e Widget)
 
 ## 🚀 Como Executar o Projeto
 
