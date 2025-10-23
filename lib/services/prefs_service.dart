@@ -17,5 +17,14 @@ class PrefsService {
   bool getMarketingConsent() => _prefs.getBool('marketing_consent') ?? false;
   Future<void> setMarketingConsent(bool value) async =>
       _prefs.setBool('marketing_consent', value);
-}
 
+  // ---------- Avatar ----------
+  // Armazena o caminho local da foto do usuário
+  String? getUserPhotoPath() => _prefs.getString('user_photo_path');
+  Future<void> setUserPhotoPath(String path) async =>
+      _prefs.setString('user_photo_path', path);
+
+  // Remove a chave ao apagar a foto
+  Future<void> removeUserPhotoPath() async =>
+      _prefs.remove('user_photo_path');
+}

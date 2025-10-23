@@ -1,5 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
+
 import '../services/finance_service.dart';
 import '../services/prefs_service.dart';
 import 'add_gasto_page.dart';
@@ -14,7 +20,118 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  
+  String? _userPhotoPath;
+  final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _userPhotoPath = widget.prefs.getUserPhotoPath();
+  }
+
+  // --- Lógica de seleção e salvamento de imagem ---
+
+  Future<void> _onEditAvatarPressed() async {
+    Navigator.pop(context); // Fecha o drawer
+    await showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: <Widget>[
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Tirar Foto (Câmera)'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Escolher da Galeria'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+            if (_userPhotoPath != null)
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Remover Foto', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _removeImage();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(source: source);
+      if (pickedFile == null) return;
+
+      final File? compressedFile = await _compressImage(pickedFile);
+      if (compressedFile == null) return;
+
+      final String savedPath = await _saveImageLocally(compressedFile);
+
+      await widget.prefs.setUserPhotoPath(savedPath);
+      setState(() {
+        _userPhotoPath = savedPath;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Falha ao selecionar imagem. Tente novamente.')),
+        );
+      }
+    }
+  }
+
+  Future<File?> _compressImage(XFile file) async {
+    final result = await FlutterImageCompress.compressWithFile(
+      file.path,
+      minWidth: 512,
+      minHeight: 512,
+      quality: 80,
+      autoCorrectionAngle: true,
+      keepExif: false,
+    );
+
+    if (result == null) return null;
+    
+    final tempDir = await getTemporaryDirectory();
+    final tempFile = File(p.join(tempDir.path, 'temp_compressed.jpg'));
+    await tempFile.writeAsBytes(result);
+    return tempFile;
+  }
+
+  Future<String> _saveImageLocally(File imageFile) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final String newPath = p.join(directory.path, 'avatar.jpg');
+    await imageFile.copy(newPath);
+    return newPath;
+  }
+
+  Future<void> _removeImage() async {
+    if (_userPhotoPath != null) {
+      final file = File(_userPhotoPath!);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
+    
+    await widget.prefs.removeUserPhotoPath();
+    setState(() {
+      _userPhotoPath = null;
+    });
+  }
+
+  // --- Métodos de Lógica (FitWallet) ---
   void _navegarParaAddGasto() async {
     final novaTransacao = await Navigator.push<Transacao>(
       context,
@@ -26,11 +143,12 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // ▼▼▼ ERRO 1 CORRIGIDO AQUI ▼▼▼
   void _navegarParaEditarGasto(int index, Transacao transacao) async {
     final transacaoEditada = await Navigator.push<Transacao>(
       context,
       MaterialPageRoute(
-        builder: (context) => AddGastoPage(transacaoParaEditar: transacao),
+        builder: (context) => AddGastoPage(transacaoParaEditar: transacao), // CORRIGIDO
       ),
     );
 
@@ -49,6 +167,7 @@ class _HomePageState extends State<HomePage> {
             title: const Text('Alterar'),
             onTap: () {
               Navigator.pop(context);
+              // Pega a transação do serviço para passar adiante
               final transacao = context.read<FinanceService>().transacoes[index];
               _navegarParaEditarGasto(index, transacao);
             },
@@ -122,6 +241,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // --- Build ---
   @override
   Widget build(BuildContext context) {
     return Consumer<FinanceService>(
@@ -142,6 +262,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // --- Widgets do Corpo ---
   Widget _buildBody(FinanceService financeService) {
     return ListView(
       padding: const EdgeInsets.all(16.0),
@@ -172,7 +293,8 @@ class _HomePageState extends State<HomePage> {
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          // ▼▼▼ ERRO 2 CORRIGIDO AQUI ▼▼▼
+          crossAxisAlignment: CrossAxisAlignment.start, // CORRIGIDO
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -261,24 +383,59 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // --- _buildDrawer ---
   Drawer _buildDrawer() {
+    final theme = Theme.of(context);
+    
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          DrawerHeader(
+          UserAccountsDrawerHeader(
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
+              color: theme.colorScheme.primary,
             ),
-            child: const Align(
-              alignment: Alignment.bottomLeft,
-              child: Text(
-                'Configurações',
-                style: TextStyle(
-                  fontSize: 20,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+            accountName: const Text(
+              'Usuário FitWallet',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            accountEmail: const Text('seu.email@exemplo.com'),
+            currentAccountPicture: Semantics(
+              label: 'Foto do perfil',
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  CircleAvatar(
+                    radius: 36.0,
+                    backgroundImage: _userPhotoPath != null
+                        ? FileImage(File(_userPhotoPath!))
+                        : null,
+                    backgroundColor: Colors.white,
+                    child: _userPhotoPath == null
+                        ? Text(
+                            'U',
+                            style: TextStyle(
+                              fontSize: 40.0,
+                              color: theme.colorScheme.primary,
+                            ),
+                          )
+                        : null,
+                  ),
+                  Positioned(
+                    bottom: -4,
+                    right: -4,
+                    child: CircleAvatar(
+                      radius: 18,
+                      backgroundColor: theme.scaffoldBackgroundColor,
+                      child: IconButton(
+                        iconSize: 20,
+                        icon: Icon(Icons.edit, color: theme.colorScheme.primary),
+                        onPressed: _onEditAvatarPressed,
+                        tooltip: 'Alterar foto do perfil',
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
