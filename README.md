@@ -62,7 +62,7 @@ Este projeto utiliza um conjunto de pacotes modernos e recomendados para o desen
 
 3.  **Configure as Permissões (para o Avatar):**
     * Certifique-se de que as permissões de Câmera e Galeria estão configuradas:
-    * **iOS:** Adicione as chaves `NSPhotoLibraryUsageDescription` e `NSCameraUsageDescription` ao arquivo `ios/Runner/Info.plist`.
+    * **iOS:** O projeto ainda não é totalmente funcional para IOS
     * **Android:** Adicione a permissão `android.permission.CAMERA` ao `android/app/src/main/AndroidManifest.xml` (se necessário).
 
 4.  **Execute o aplicativo:**
