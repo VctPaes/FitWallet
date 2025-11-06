@@ -5,6 +5,7 @@ import 'services/prefs_service.dart';
 import 'pages/splash_page.dart';
 import 'pages/home_page.dart';
 import 'pages/onboarding_page.dart';
+import 'pages/settings_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,6 +53,7 @@ class FitWalletApp extends StatelessWidget {
         '/': (ctx) => SplashPage(prefs: prefs),
         '/onboarding': (ctx) => OnboardingPage(prefs: prefs),
         '/home': (ctx) => HomePage(prefs: prefs),
+        '/settings': (ctx) => SettingsPage(prefs: prefs),
       },
     );
   }

@@ -10,6 +10,7 @@ import '../services/finance_service.dart';
 import '../services/prefs_service.dart';
 import 'add_gasto_page.dart';
 import '../models/transacao.dart';
+import '../widgets/app_drawer.dart';
 
 class HomePage extends StatefulWidget {
   final PrefsService prefs;
@@ -29,10 +30,10 @@ class _HomePageState extends State<HomePage> {
     _userPhotoPath = widget.prefs.getUserPhotoPath();
   }
 
-  // --- Lógica de seleção e salvamento de imagem ---
+  // --- Métodos de Ação do Avatar ---
 
   Future<void> _onEditAvatarPressed() async {
-    Navigator.pop(context); // Fecha o drawer
+    Navigator.pop(context); 
     await showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -132,6 +133,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // --- Métodos de Lógica (FitWallet) ---
+
   void _navegarParaAddGasto() async {
     final novaTransacao = await Navigator.push<Transacao>(
       context,
@@ -143,12 +145,11 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // ▼▼▼ ERRO 1 CORRIGIDO AQUI ▼▼▼
   void _navegarParaEditarGasto(int index, Transacao transacao) async {
     final transacaoEditada = await Navigator.push<Transacao>(
       context,
       MaterialPageRoute(
-        builder: (context) => AddGastoPage(transacaoParaEditar: transacao), // CORRIGIDO
+        builder: (context) => AddGastoPage(transacaoParaEditar: transacao),
       ),
     );
 
@@ -167,7 +168,6 @@ class _HomePageState extends State<HomePage> {
             title: const Text('Alterar'),
             onTap: () {
               Navigator.pop(context);
-              // Pega a transação do serviço para passar adiante
               final transacao = context.read<FinanceService>().transacoes[index];
               _navegarParaEditarGasto(index, transacao);
             },
@@ -244,17 +244,55 @@ class _HomePageState extends State<HomePage> {
   // --- Build ---
   @override
   Widget build(BuildContext context) {
+    // Usamos um Builder aqui para que o Scaffold.of(context) do AppBar funcione
     return Consumer<FinanceService>(
       builder: (context, financeService, child) {
+        final theme = Theme.of(context);
+
         return Scaffold(
+          // --- AppBar Atualizado ---
           appBar: AppBar(
+            // O Ícone do Drawer (leading) é adicionado automaticamente pelo Scaffold
             title: const Text('FitWallet'),
+            centerTitle: true,
+            backgroundColor: theme.colorScheme.secondary, // Navy
+            elevation: 0,
+            actions: [
+              // Avatar no AppBar (como na Imagem 1)
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundImage: _userPhotoPath != null
+                      ? FileImage(File(_userPhotoPath!))
+                      : null,
+                  backgroundColor: theme.colorScheme.primary, // Emerald
+                  child: _userPhotoPath == null
+                      ? const Text(
+                          'U', 
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+                        )
+                      : null,
+                ),
+              ),
+              // Ícone de Configurações (como na Imagem 1)
+              IconButton(
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () {
+                  Navigator.of(context).pushNamed('/settings');
+                },
+              ),
+            ],
           ),
-          drawer: _buildDrawer(),
+          drawer: AppDrawer(
+            userPhotoPath: _userPhotoPath,
+            onEditAvatarPressed: _onEditAvatarPressed,
+          ),
+          // --- Corpo Atualizado ---
           body: _buildBody(financeService),
           floatingActionButton: FloatingActionButton(
             onPressed: _navegarParaAddGasto,
-            backgroundColor: const Color(0xFF059669),
+            backgroundColor: theme.colorScheme.primary, // Emerald
             child: const Icon(Icons.add, color: Colors.white),
           ),
         );
@@ -263,78 +301,130 @@ class _HomePageState extends State<HomePage> {
   }
 
   // --- Widgets do Corpo ---
+
   Widget _buildBody(FinanceService financeService) {
+    final theme = Theme.of(context);
+    final totalGasto = financeService.transacoes.fold(0.0, (sum, item) => sum + item.valor);
+    final meta = financeService.metaSemanal;
+    final disponivel = meta - totalGasto;
+
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
-        _buildMetaCard(financeService),
+        // 1. Barra de Busca 
+        _buildSearchBar(),
         const SizedBox(height: 24),
+        
+        // 2. Três Cards de Resumo 
+        _buildSummaryCards(theme, totalGasto, meta, disponivel),
+        const SizedBox(height: 24),
+        
+        // 3. Card de Progresso 
+        _buildProgressCard(theme, financeService, totalGasto, meta),
+        const SizedBox(height: 24),
+        
+        // 4. Título da Lista
         Text(
           'Gastos Recentes',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: const Color(0xFF0B1220),
+          style: theme.textTheme.titleLarge?.copyWith(
+            color: theme.colorScheme.secondary,
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 8),
+        
+        // 5. Lista de Transações ou Estado Vazio
         _buildTransacoesList(financeService),
       ],
     );
   }
 
-  Widget _buildMetaCard(FinanceService financeService) {
-    final totalGasto = financeService.transacoes.fold(0.0, (sum, item) => sum + item.valor);
-    final meta = financeService.metaSemanal;
-    final progresso = (meta > 0) ? totalGasto / meta : 0.0;
+  // --- Widget: Barra de Busca ---
+  Widget _buildSearchBar() {
+    return TextField(
+      decoration: InputDecoration(
+        hintText: 'Buscar gastos...',
+        hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4)),
+        prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4)),
+        filled: true,
+        fillColor: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.0),
+          borderSide: BorderSide.none,
+        ),
+      ),
+      onChanged: (value) {
+      },
+    );
+  }
 
+  // --- Widget: 3 Cards de Resumo ---
+  Widget _buildSummaryCards(ThemeData theme, double totalGasto, double meta, double disponivel) {
+    final colorTotal = theme.colorScheme.secondary.withOpacity(0.1); 
+    final colorMeta = const Color(0xFFFFF7E0); 
+    final colorDisponivel = theme.colorScheme.primary.withOpacity(0.1); 
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildSummaryCard(
+            theme,
+            'Gasto Total',
+            'R\$ ${totalGasto.toStringAsFixed(2)}',
+            Icons.receipt_long_outlined,
+            colorTotal,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildSummaryCard(
+            theme,
+            'Meta Semanal',
+            'R\$ ${meta.toStringAsFixed(2)}',
+            Icons.flag_outlined,
+            colorMeta,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildSummaryCard(
+            theme,
+            'Disponível',
+            'R\$ ${disponivel.toStringAsFixed(2)}',
+            disponivel >= 0 ? Icons.check_circle_outline : Icons.warning_amber_outlined,
+            colorDisponivel,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- Widget: Card de Resumo Individual ---
+  Widget _buildSummaryCard(ThemeData theme, String title, String value, IconData icon, Color backgroundColor) {
     return Card(
-      elevation: 4,
+      elevation: 0,
+      color: backgroundColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          // ▼▼▼ ERRO 2 CORRIGIDO AQUI ▼▼▼
-          crossAxisAlignment: CrossAxisAlignment.start, // CORRIGIDO
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Meta Semanal',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF0B1220),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Color(0xFF475569)),
-                  onPressed: _alterarMetaSemanal,
-                  tooltip: 'Alterar Meta',
-                ),
-              ],
-            ),
+            Icon(icon, size: 28, color: theme.colorScheme.secondary), 
             const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Gasto: R\$ ${totalGasto.toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 16, color: Color(0xFF475569)),
-                ),
-                Text(
-                  'Meta: R\$ ${meta.toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 16, color: Color(0xFF475569)),
-                ),
-              ],
+            Text(
+              value,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.secondary,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 12),
-            LinearProgressIndicator(
-              value: progresso.isNaN || progresso.isInfinite ? 0 : (progresso > 1.0 ? 1.0 : progresso),
-              backgroundColor: const Color(0xFF475569).withOpacity(0.2),
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF059669)),
-              minHeight: 8,
-              borderRadius: BorderRadius.circular(4),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
             ),
           ],
         ),
@@ -342,17 +432,106 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // --- Widget: Card de Progresso ---
+  Widget _buildProgressCard(ThemeData theme, FinanceService financeService, double totalGasto, double meta) {
+    final double progresso = (meta > 0) ? totalGasto / meta : 0.0;
+    final double progressoClamped = progresso.clamp(0.0, 1.0);
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: theme.colorScheme.surface,
+
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.show_chart, color: theme.colorScheme.primary), 
+                const SizedBox(width: 8),
+                Text(
+                  'Progresso da Meta',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.secondary, 
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Você já usou R\$ ${totalGasto.toStringAsFixed(2)} da sua meta de R\$ ${meta.toStringAsFixed(2)}.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 16),
+            LinearProgressIndicator(
+              value: progressoClamped,
+              backgroundColor: theme.colorScheme.onSurface.withOpacity(0.1),
+              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary), 
+              minHeight: 8,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${(progressoClamped * 100).toStringAsFixed(0)}% Completo',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.edit, size: 20, color: theme.colorScheme.onSurface.withOpacity(0.5)),
+                  onPressed: _alterarMetaSemanal,
+                  tooltip: 'Alterar Meta',
+                )
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- Widget: Lista de Transações ---
   Widget _buildTransacoesList(FinanceService financeService) {
     final transacoes = financeService.transacoes;
+    final theme = Theme.of(context);
 
     if (transacoes.isEmpty) {
-      return const Center(
+  
+      return Center(
         child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 40.0),
-          child: Text(
-            'Nenhum gasto registrado ainda.\nClique no botão + para começar!',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, color: Color(0xFF475569)),
+          padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 20.0),
+          child: Column(
+            children: [
+              Icon(
+                Icons.check_circle_outline, 
+                size: 60,
+                color: theme.colorScheme.onSurface.withOpacity(0.3),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Nenhum gasto aqui',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface.withOpacity(0.8),
+                ),
+              ),
+              Text(
+                'Adicione um gasto usando o botão +',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -367,7 +546,7 @@ class _HomePageState extends State<HomePage> {
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4.0),
           child: ListTile(
-            leading: Icon(transacao.icone, color: const Color(0xFF059669)),
+            leading: Icon(transacao.icone, color: theme.colorScheme.primary), 
             title: Text(transacao.titulo),
             trailing: Text(
               '- R\$ ${transacao.valor.toStringAsFixed(2)}',
@@ -380,99 +559,6 @@ class _HomePageState extends State<HomePage> {
           ),
         );
       },
-    );
-  }
-
-  // --- _buildDrawer ---
-  Drawer _buildDrawer() {
-    final theme = Theme.of(context);
-    
-    return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          UserAccountsDrawerHeader(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary,
-            ),
-            accountName: const Text(
-              'Usuário FitWallet',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            accountEmail: const Text('seu.email@exemplo.com'),
-            currentAccountPicture: Semantics(
-              label: 'Foto do perfil',
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  CircleAvatar(
-                    radius: 36.0,
-                    backgroundImage: _userPhotoPath != null
-                        ? FileImage(File(_userPhotoPath!))
-                        : null,
-                    backgroundColor: Colors.white,
-                    child: _userPhotoPath == null
-                        ? Text(
-                            'U',
-                            style: TextStyle(
-                              fontSize: 40.0,
-                              color: theme.colorScheme.primary,
-                            ),
-                          )
-                        : null,
-                  ),
-                  Positioned(
-                    bottom: -4,
-                    right: -4,
-                    child: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: theme.scaffoldBackgroundColor,
-                      child: IconButton(
-                        iconSize: 20,
-                        icon: Icon(Icons.edit, color: theme.colorScheme.primary),
-                        onPressed: _onEditAvatarPressed,
-                        tooltip: 'Alterar foto do perfil',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.refresh),
-            title: const Text('Refazer Onboarding'),
-            onTap: () async {
-              Navigator.pop(context);
-              await widget.prefs.setOnboardingCompleted(false);
-              bool currentConsent = widget.prefs.getMarketingConsent();
-              Navigator.of(context).pushReplacementNamed(
-                '/onboarding',
-                arguments: {
-                  'startAtPage': 0,
-                  'initialConsent': currentConsent,
-                },
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.privacy_tip_outlined),
-            title: const Text('Limpar Consentimento'),
-            subtitle: const Text('Revoga consentimento da política'),
-            onTap: () async {
-              Navigator.pop(context);
-              await widget.prefs.setMarketingConsent(false);
-              Navigator.of(context).pushReplacementNamed(
-                '/onboarding',
-                arguments: {
-                  'startAtPage': 2,
-                  'initialConsent': false,
-                },
-              );
-            },
-          ),
-        ],
-      ),
     );
   }
 }

@@ -27,4 +27,7 @@ class PrefsService {
   // Remove a chave ao apagar a foto
   Future<void> removeUserPhotoPath() async =>
       _prefs.remove('user_photo_path');
+
+  // ---------- Reset ----------
+  Future<void> clearAll() async => _prefs.clear();
 }
