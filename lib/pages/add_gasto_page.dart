@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../models/transacao.dart'; 
+import '../models/transacao.dart';
 
+// --- Modelo da Categoria (usado por esta página) ---
 class Categoria {
   final String nome;
   final IconData icone;
@@ -18,6 +19,7 @@ class Categoria {
   int get hashCode => nome.hashCode;
 }
 
+// --- Página de Adicionar/Editar Gasto ---
 class AddGastoPage extends StatefulWidget {
   final Transacao? transacaoParaEditar;
 
@@ -67,6 +69,8 @@ class _AddGastoPageState extends State<AddGastoPage> {
     super.dispose();
   }
 
+  // --- Métodos de Ação ---
+
   void _salvarGasto() {
     if (_formKey.currentState!.validate()) {
       final gastoProcessado = Transacao(
@@ -79,11 +83,36 @@ class _AddGastoPageState extends State<AddGastoPage> {
     }
   }
 
+  // --- Widgets de Construção ---
+
+  InputDecoration _buildInputDecoration(String label, {String? hint, String? prefix}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      prefixText: prefix,
+      filled: true,
+      fillColor: Colors.grey.shade100,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? 'Editar Gasto' : 'Adicionar Gasto'),
+        // Define a cor da AppBar para corresponder ao tema
+        backgroundColor: theme.colorScheme.secondary, 
+        foregroundColor: Colors.white,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -93,10 +122,7 @@ class _AddGastoPageState extends State<AddGastoPage> {
             children: [
               TextFormField(
                 controller: _tituloController,
-                decoration: const InputDecoration(
-                  labelText: 'Descrição',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: _buildInputDecoration('Descrição', hint: 'Ex: Almoço'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Por favor, insira uma descrição.';
@@ -107,11 +133,7 @@ class _AddGastoPageState extends State<AddGastoPage> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _valorController,
-                decoration: const InputDecoration(
-                  labelText: 'Valor (R\$)',
-                  border: OutlineInputBorder(),
-                  prefixText: 'R\$ ',
-                ),
+                decoration: _buildInputDecoration('Valor (R\$)', hint: '25,50', prefix: 'R\$ '),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d+[,.]?\d{0,2}')),
@@ -129,16 +151,13 @@ class _AddGastoPageState extends State<AddGastoPage> {
               const SizedBox(height: 16),
               DropdownButtonFormField<Categoria>(
                 value: _categoriaSelecionada,
-                decoration: const InputDecoration(
-                  labelText: 'Categoria',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: _buildInputDecoration('Categoria'),
                 items: _categorias.map((Categoria categoria) {
                   return DropdownMenuItem<Categoria>(
                     value: categoria,
                     child: Row(
                       children: [
-                        Icon(categoria.icone, color: const Color(0xFF059669)),
+                        Icon(categoria.icone, color: theme.colorScheme.primary), // Emerald
                         const SizedBox(width: 10),
                         Text(categoria.nome),
                       ],
@@ -158,18 +177,25 @@ class _AddGastoPageState extends State<AddGastoPage> {
                 },
               ),
               const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: _salvarGasto,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF059669),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  textStyle: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+              
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _salvarGasto,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary, // Emerald
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    textStyle: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
+                  child: const Text('Salvar'),
                 ),
-                child: const Text('Salvar'),
               ),
             ],
           ),

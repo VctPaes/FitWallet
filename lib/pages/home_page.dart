@@ -244,21 +244,17 @@ class _HomePageState extends State<HomePage> {
   // --- Build ---
   @override
   Widget build(BuildContext context) {
-    // Usamos um Builder aqui para que o Scaffold.of(context) do AppBar funcione
     return Consumer<FinanceService>(
       builder: (context, financeService, child) {
         final theme = Theme.of(context);
 
         return Scaffold(
-          // --- AppBar Atualizado ---
           appBar: AppBar(
-            // O Ícone do Drawer (leading) é adicionado automaticamente pelo Scaffold
             title: const Text('FitWallet'),
             centerTitle: true,
             backgroundColor: theme.colorScheme.secondary, // Navy
             elevation: 0,
             actions: [
-              // Avatar no AppBar (como na Imagem 1)
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: CircleAvatar(
@@ -275,7 +271,6 @@ class _HomePageState extends State<HomePage> {
                       : null,
                 ),
               ),
-              // Ícone de Configurações (como na Imagem 1)
               IconButton(
                 icon: const Icon(Icons.settings_outlined),
                 onPressed: () {
@@ -288,7 +283,6 @@ class _HomePageState extends State<HomePage> {
             userPhotoPath: _userPhotoPath,
             onEditAvatarPressed: _onEditAvatarPressed,
           ),
-          // --- Corpo Atualizado ---
           body: _buildBody(financeService),
           floatingActionButton: FloatingActionButton(
             onPressed: _navegarParaAddGasto,
@@ -311,35 +305,25 @@ class _HomePageState extends State<HomePage> {
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
-        // 1. Barra de Busca 
         _buildSearchBar(),
         const SizedBox(height: 24),
-        
-        // 2. Três Cards de Resumo 
         _buildSummaryCards(theme, totalGasto, meta, disponivel),
         const SizedBox(height: 24),
-        
-        // 3. Card de Progresso 
         _buildProgressCard(theme, financeService, totalGasto, meta),
         const SizedBox(height: 24),
-        
-        // 4. Título da Lista
         Text(
           'Gastos Recentes',
           style: theme.textTheme.titleLarge?.copyWith(
-            color: theme.colorScheme.secondary,
+            color: theme.colorScheme.secondary, // Navy
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 8),
-        
-        // 5. Lista de Transações ou Estado Vazio
         _buildTransacoesList(financeService),
       ],
     );
   }
 
-  // --- Widget: Barra de Busca ---
   Widget _buildSearchBar() {
     return TextField(
       decoration: InputDecoration(
@@ -354,52 +338,55 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       onChanged: (value) {
+        // Lógica de busca (pode ser implementada depois)
       },
     );
   }
 
-  // --- Widget: 3 Cards de Resumo ---
   Widget _buildSummaryCards(ThemeData theme, double totalGasto, double meta, double disponivel) {
-    final colorTotal = theme.colorScheme.secondary.withOpacity(0.1); 
-    final colorMeta = const Color(0xFFFFF7E0); 
-    final colorDisponivel = theme.colorScheme.primary.withOpacity(0.1); 
+    final colorTotal = theme.colorScheme.secondary.withOpacity(0.1); // Fundo Navy
+    final colorMeta = const Color(0xFFFFF7E0); // Amarelo/laranja claro
+    final colorDisponivel = theme.colorScheme.primary.withOpacity(0.1); // Fundo Verde
 
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _buildSummaryCard(
-            theme,
-            'Gasto Total',
-            'R\$ ${totalGasto.toStringAsFixed(2)}',
-            Icons.receipt_long_outlined,
-            colorTotal,
-          ),
+        // 1. Card da Meta (Largo, no topo)
+        _buildSummaryCard(
+          theme,
+          'Meta Semanal',
+          'R\$ ${meta.toStringAsFixed(2)}',
+          Icons.flag_outlined,
+          colorMeta,
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildSummaryCard(
-            theme,
-            'Meta Semanal',
-            'R\$ ${meta.toStringAsFixed(2)}',
-            Icons.flag_outlined,
-            colorMeta,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildSummaryCard(
-            theme,
-            'Disponível',
-            'R\$ ${disponivel.toStringAsFixed(2)}',
-            disponivel >= 0 ? Icons.check_circle_outline : Icons.warning_amber_outlined,
-            colorDisponivel,
-          ),
-        ),
+        const SizedBox(height: 12),
+        // 2. Row com os outros dois cards
+        Row(
+          children: [
+            Expanded(
+              child: _buildSummaryCard(
+                theme,
+                'Gasto Total',
+                'R\$ ${totalGasto.toStringAsFixed(2)}',
+                Icons.receipt_long_outlined,
+                colorTotal,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildSummaryCard(
+                theme,
+                'Disponível',
+                'R\$ ${disponivel.toStringAsFixed(2)}',
+                disponivel >= 0 ? Icons.check_circle_outline : Icons.warning_amber_outlined,
+                colorDisponivel,
+              ),
+            ),
+          ],
+        )
       ],
     );
   }
 
-  // --- Widget: Card de Resumo Individual ---
   Widget _buildSummaryCard(ThemeData theme, String title, String value, IconData icon, Color backgroundColor) {
     return Card(
       elevation: 0,
@@ -409,7 +396,7 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Icon(icon, size: 28, color: theme.colorScheme.secondary), 
+            Icon(icon, size: 28, color: theme.colorScheme.secondary), // Ícone Navy
             const SizedBox(height: 8),
             Text(
               value,
@@ -432,7 +419,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // --- Widget: Card de Progresso ---
   Widget _buildProgressCard(ThemeData theme, FinanceService financeService, double totalGasto, double meta) {
     final double progresso = (meta > 0) ? totalGasto / meta : 0.0;
     final double progressoClamped = progresso.clamp(0.0, 1.0);
@@ -441,7 +427,6 @@ class _HomePageState extends State<HomePage> {
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: theme.colorScheme.surface,
-
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -449,13 +434,13 @@ class _HomePageState extends State<HomePage> {
           children: [
             Row(
               children: [
-                Icon(Icons.show_chart, color: theme.colorScheme.primary), 
+                Icon(Icons.show_chart, color: theme.colorScheme.primary), // Ícone Emerald
                 const SizedBox(width: 8),
                 Text(
                   'Progresso da Meta',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.secondary, 
+                    color: theme.colorScheme.secondary, // Navy
                   ),
                 ),
               ],
@@ -471,7 +456,7 @@ class _HomePageState extends State<HomePage> {
             LinearProgressIndicator(
               value: progressoClamped,
               backgroundColor: theme.colorScheme.onSurface.withOpacity(0.1),
-              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary), 
+              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary), // Emerald
               minHeight: 8,
               borderRadius: BorderRadius.circular(4),
             ),
@@ -499,20 +484,18 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // --- Widget: Lista de Transações ---
   Widget _buildTransacoesList(FinanceService financeService) {
     final transacoes = financeService.transacoes;
     final theme = Theme.of(context);
 
     if (transacoes.isEmpty) {
-  
       return Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 20.0),
           child: Column(
             children: [
               Icon(
-                Icons.check_circle_outline, 
+                Icons.check_circle_outline, // Ícone de check
                 size: 60,
                 color: theme.colorScheme.onSurface.withOpacity(0.3),
               ),
@@ -546,7 +529,7 @@ class _HomePageState extends State<HomePage> {
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4.0),
           child: ListTile(
-            leading: Icon(transacao.icone, color: theme.colorScheme.primary), 
+            leading: Icon(transacao.icone, color: theme.colorScheme.primary), // Emerald
             title: Text(transacao.titulo),
             trailing: Text(
               '- R\$ ${transacao.valor.toStringAsFixed(2)}',
