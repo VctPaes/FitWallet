@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../features/transaction/domain/entities/transacao.dart'; // Importe a nova entidade
+import '../../domain/entities/transacao.dart';
 
 // Helper visual para as categorias no Dropdown
 class CategoriaView {

@@ -9,6 +9,7 @@ class CategoriaMapper {
       nome: dto.nome,
       iconePontoDeCodigo: dto.icone_ponto_de_codigo,
       corHex: dto.cor_hex,
+      iconKey: dto.iconKey,
     );
   }
 
@@ -18,6 +19,7 @@ class CategoriaMapper {
       nome: entity.nome,
       icone_ponto_de_codigo: entity.iconePontoDeCodigo,
       cor_hex: entity.corHex,
+      iconKey: entity.iconKey,
     );
   }
 }

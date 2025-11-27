@@ -1,19 +1,28 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+// Import do Provider de Usuário
+import '../../../features/user/presentation/providers/user_provider.dart';
 
 class AppDrawer extends StatelessWidget {
-  final String? userPhotoPath;
+  // Mantemos apenas o callback para abrir a edição (que é uma ação de UI/Tela)
   final VoidCallback onEditAvatarPressed;
 
   const AppDrawer({
     super.key,
-    required this.userPhotoPath,
     required this.onEditAvatarPressed,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    
+    // Escuta as mudanças do usuário globalmente
+    final userProvider = context.watch<UserProvider>();
+    final usuario = userProvider.usuario;
+    final userPhotoPath = usuario?.fotoPath;
+    final userName = usuario?.nome ?? 'Visitante';
 
     return Drawer(
       child: Column(
@@ -24,7 +33,7 @@ class AppDrawer extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: theme.colorScheme.secondary, 
+              color: theme.colorScheme.secondary, // Navy
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -35,12 +44,13 @@ class AppDrawer extends StatelessWidget {
                   child: CircleAvatar(
                     radius: 36.0,
                     backgroundImage: userPhotoPath != null
-                        ? FileImage(File(userPhotoPath!))
+                        ? FileImage(File(userPhotoPath))
                         : null,
                     backgroundColor: Colors.white,
                     child: userPhotoPath == null
                         ? Text(
-                            'U',
+                            // Pega a primeira letra do nome ou 'U'
+                            userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
                             style: TextStyle(
                               fontSize: 40.0,
                               color: theme.colorScheme.primary,
@@ -50,13 +60,14 @@ class AppDrawer extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'Usuário FitWallet',
-                  style: TextStyle(
+                Text(
+                  userName,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const Text(
                   'Toque na foto para gerenciar',
@@ -86,8 +97,10 @@ class AppDrawer extends StatelessWidget {
                   title: const Text('Gerenciar Foto'),
                   onTap: onEditAvatarPressed,
                 ),
+                
                 // --- Divisor ---
                 const Divider(height: 1, indent: 16, endIndent: 16),
+                
                 ListTile(
                   leading: const Icon(Icons.settings_outlined),
                   title: const Text('Configurações'),
