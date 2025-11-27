@@ -8,7 +8,7 @@ import 'package:path/path.dart' as p;
 
 import '../services/finance_service.dart';
 import '../services/prefs_service.dart';
-import 'add_gasto_page.dart';
+import '../features/transaction/presentation/pages/add_gasto_page.dart';
 import '../features/transaction/domain/entities/transacao.dart'; // Nova entidade
 import '../widgets/app_drawer.dart';
 
