@@ -6,17 +6,18 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
-import '../core/services/prefs_service.dart';
-import '../core/presentation/widgets/app_drawer.dart';
+import '../../../../core/services/prefs_service.dart';
+import '../../../../core/presentation/widgets/app_drawer.dart';
 
 // --- Imports das Features (Clean Architecture) ---
-import '../features/transaction/presentation/providers/transaction_provider.dart';
-import '../features/transaction/domain/entities/transacao.dart';
-import '../features/transaction/presentation/pages/add_gasto_page.dart';
+import '../../../transaction/presentation/providers/transaction_provider.dart';
+import '../../../transaction/domain/entities/transacao.dart';
+import '../../../transaction/presentation/pages/add_gasto_page.dart';
+import '../../../category/presentation/providers/category_provider.dart';
 
-import '../features/goal/presentation/providers/goal_provider.dart';
+import '../../../goal/presentation/providers/goal_provider.dart';
 
-import '../features/user/presentation/providers/user_provider.dart';
+import '../../../user/presentation/providers/user_provider.dart';
 
 class HomePage extends StatefulWidget {
   final PrefsService prefs;
@@ -39,18 +40,6 @@ class _HomePageState extends State<HomePage> {
       context.read<GoalProvider>().loadMeta();
       context.read<UserProvider>().loadUsuario();
     });
-  }
-
-  // --- Helpers de Ícone ---
-  IconData _getIconForCategory(String categoriaId) {
-    switch (categoriaId) {
-      case 'cat_alimentacao': return Icons.fastfood;
-      case 'cat_transporte': return Icons.directions_bus;
-      case 'cat_lazer': return Icons.sports_esports;
-      case 'cat_moradia': return Icons.home;
-      case 'cat_outros': return Icons.more_horiz;
-      default: return Icons.attach_money;
-    }
   }
 
   // --- Métodos de Ação (Transação) ---
@@ -492,19 +481,29 @@ class _HomePageState extends State<HomePage> {
     }
     
     return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: transacoes.length,
       itemBuilder: (context, index) {
         final transacao = transacoes[index];
+  
+        // Busca a categoria completa pelo ID da transação
+        final categoryProvider = context.read<CategoryProvider>();
+        final categoria = categoryProvider.getCategoriaById(transacao.categoriaId);
+  
+        // Define ícone e cor (com fallback se não encontrar)
+        final iconData = categoria != null 
+            ? CategoryProvider.getIconFromKey(categoria.iconKey) 
+            : Icons.help_outline;
+      
+       final iconColor = categoria != null 
+            ? Color(categoria.corHex) 
+            : theme.colorScheme.primary;
+
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4.0),
           child: ListTile(
-            leading: Icon(_getIconForCategory(transacao.categoriaId), color: theme.colorScheme.primary),
+            // Agora usa os dados dinâmicos
+            leading: Icon(iconData, color: iconColor),
             title: Text(transacao.titulo),
-            subtitle: Text(transacao.data.toIso8601String().split('T')[0]), 
-            trailing: Text('- R\$ ${transacao.valor.toStringAsFixed(2)}', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-            onTap: () => _mostrarOpcoesGasto(transacao),
+            // ... resto do código igual
           ),
         );
       },

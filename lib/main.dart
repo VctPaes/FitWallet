@@ -35,23 +35,26 @@ import 'features/user/domain/usecases/update_usuario_foto_usecase.dart';
 import 'features/user/domain/usecases/remove_usuario_foto_usecase.dart';
 import 'features/user/presentation/providers/user_provider.dart';
 
+// --- Feature: Category (Categoria) ---
+import 'features/category/data/datasources/categoria_local_datasource.dart';
+import 'features/category/data/mappers/categoria_mapper.dart';
+import 'features/category/data/repositories/categoria_repository_impl.dart';
+import 'features/category/domain/repositories/categoria_repository.dart';
+import 'features/category/domain/usecases/get_categorias_usecase.dart';
+import 'features/category/presentation/providers/category_provider.dart';
+
 // --- Pages (Telas) ---
-import 'pages/splash_page.dart';
-import 'pages/home_page.dart';
-import 'pages/onboarding_page.dart';
-import 'pages/settings_page.dart';
-// A AddGastoPage não precisa ser importada aqui se não for uma rota nomeada, 
-// mas deixamos caso precise no futuro.
-import 'features/transaction/presentation/pages/add_gasto_page.dart';
+// Nota: Certifique-se de que os arquivos foram movidos para estes locais
+import 'features/splash/presentation/pages/splash_page.dart';
+import 'features/onboarding/presentation/pages/onboarding_page.dart';
+import 'features/settings/presentation/pages/settings_page.dart';
+import 'features/home/presentation/pages/home_page.dart'; // Mantido em 'pages' conforme estrutura atual
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // 1. Inicialização de Serviços Externos
-  // Mantemos o PrefsService legado para configurações simples (tema, onboarding)
-  final prefsService = await PrefsService.init(); 
-  
-  // Instância crua do SharedPreferences para ser injetada nos DataSources da Clean Arch
+  final prefsService = await PrefsService.init();
   final sharedPreferences = await SharedPreferences.getInstance();
 
   runApp(
@@ -60,8 +63,6 @@ void main() async {
         // ==========================================
         // FEATURE: TRANSACTION
         // ==========================================
-        
-        // Data Layer
         Provider<TransactionLocalDataSource>(
           create: (_) => TransactionLocalDataSourceImpl(sharedPreferences),
         ),
@@ -74,8 +75,7 @@ void main() async {
             context.read<TransacaoMapper>(),
           ),
         ),
-
-        // Domain Layer (UseCases)
+        // UseCases
         Provider<GetTransactionsUseCase>(
           create: (context) => GetTransactionsUseCase(context.read<TransactionRepository>()),
         ),
@@ -88,22 +88,19 @@ void main() async {
         Provider<DeleteTransactionUseCase>(
           create: (context) => DeleteTransactionUseCase(context.read<TransactionRepository>()),
         ),
-
-        // Presentation Layer (State)
+        // Provider (Presentation)
         ChangeNotifierProvider(
           create: (context) => TransactionProvider(
             getTransactionsUseCase: context.read<GetTransactionsUseCase>(),
             addTransactionUseCase: context.read<AddTransactionUseCase>(),
             updateTransactionUseCase: context.read<UpdateTransactionUseCase>(),
             deleteTransactionUseCase: context.read<DeleteTransactionUseCase>(),
-          )..loadTransactions(), // Carrega dados ao iniciar o app
+          )..loadTransactions(),
         ),
 
         // ==========================================
         // FEATURE: GOAL (META)
         // ==========================================
-
-        // Data Layer
         Provider<MetaLocalDataSource>(
           create: (_) => MetaLocalDataSourceImpl(sharedPreferences),
         ),
@@ -116,28 +113,24 @@ void main() async {
             context.read<MetaMapper>(),
           ),
         ),
-
-        // Domain Layer (UseCases)
+        // UseCases
         Provider<GetMetaUseCase>(
           create: (context) => GetMetaUseCase(context.read<MetaRepository>()),
         ),
         Provider<UpdateMetaUseCase>(
           create: (context) => UpdateMetaUseCase(context.read<MetaRepository>()),
         ),
-
-        // Presentation Layer (State)
+        // Provider (Presentation)
         ChangeNotifierProvider(
           create: (context) => GoalProvider(
             getMetaUseCase: context.read<GetMetaUseCase>(),
             updateMetaUseCase: context.read<UpdateMetaUseCase>(),
-          )..loadMeta(), // Carrega dados ao iniciar o app
+          )..loadMeta(),
         ),
 
         // ==========================================
         // FEATURE: USER (USUÁRIO)
         // ==========================================
-        
-        // Data Layer
         Provider<UsuarioLocalDataSource>(
           create: (_) => UsuarioLocalDataSourceImpl(sharedPreferences),
         ),
@@ -150,8 +143,7 @@ void main() async {
             context.read<UsuarioMapper>(),
           ),
         ),
-
-        // Domain Layer (UseCases)
+        // UseCases
         Provider<GetUsuarioUseCase>(
           create: (context) => GetUsuarioUseCase(context.read<UsuarioRepository>()),
         ),
@@ -161,14 +153,39 @@ void main() async {
         Provider<RemoveUsuarioFotoUseCase>(
           create: (context) => RemoveUsuarioFotoUseCase(context.read<UsuarioRepository>()),
         ),
-
-        // Presentation Layer (State)
+        // Provider (Presentation)
         ChangeNotifierProvider(
           create: (context) => UserProvider(
             getUsuarioUseCase: context.read<GetUsuarioUseCase>(),
             updateUsuarioFotoUseCase: context.read<UpdateUsuarioFotoUseCase>(),
             removeUsuarioFotoUseCase: context.read<RemoveUsuarioFotoUseCase>(),
-          )..loadUsuario(), // Carrega dados ao iniciar o app
+          )..loadUsuario(),
+        ),
+
+        // ==========================================
+        // FEATURE: CATEGORY (CATEGORIA)
+        // ==========================================
+        Provider<CategoriaLocalDataSource>(
+          create: (_) => CategoriaLocalDataSourceImpl(sharedPreferences),
+        ),
+        Provider<CategoriaMapper>(
+          create: (_) => CategoriaMapper(),
+        ),
+        Provider<CategoriaRepository>(
+          create: (context) => CategoriaRepositoryImpl(
+            context.read<CategoriaLocalDataSource>(),
+            context.read<CategoriaMapper>(),
+          ),
+        ),
+        // UseCases
+        Provider<GetCategoriasUseCase>(
+          create: (context) => GetCategoriasUseCase(context.read<CategoriaRepository>()),
+        ),
+        // Provider (Presentation)
+        ChangeNotifierProvider(
+          create: (context) => CategoryProvider(
+            getCategoriasUseCase: context.read<GetCategoriasUseCase>(),
+          )..loadCategorias(),
         ),
       ],
       child: FitWalletApp(prefs: prefsService),
@@ -207,10 +224,11 @@ class FitWalletApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
       routes: {
+        // Rotas apontando para os locais corretos nas Features
         '/': (ctx) => SplashPage(prefs: prefs),
         '/onboarding': (ctx) => OnboardingPage(prefs: prefs),
-        '/home': (ctx) => HomePage(prefs: prefs),
         '/settings': (ctx) => SettingsPage(prefs: prefs),
+        '/home': (ctx) => HomePage(prefs: prefs),
       },
     );
   }

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../core/services/prefs_service.dart';
+import '../../../../core/services/prefs_service.dart';
 
 class SplashPage extends StatefulWidget {
   final PrefsService prefs;
