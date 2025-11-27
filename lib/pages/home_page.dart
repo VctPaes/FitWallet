@@ -9,7 +9,7 @@ import 'package:path/path.dart' as p;
 import '../services/finance_service.dart';
 import '../services/prefs_service.dart';
 import 'add_gasto_page.dart';
-import '../models/transacao.dart';
+import '../features/transaction/domain/entities/transacao.dart'; // Nova entidade
 import '../widgets/app_drawer.dart';
 
 class HomePage extends StatefulWidget {
@@ -28,6 +28,19 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _userPhotoPath = widget.prefs.getUserPhotoPath();
+  }
+
+  // --- Helpers ---
+
+  IconData _getIconForCategory(String categoriaId) {
+    switch (categoriaId) {
+      case 'cat_alimentacao': return Icons.fastfood;
+      case 'cat_transporte': return Icons.directions_bus;
+      case 'cat_lazer': return Icons.sports_esports;
+      case 'cat_moradia': return Icons.home;
+      case 'cat_outros': return Icons.more_horiz;
+      default: return Icons.attach_money;
+    }
   }
 
   // --- Métodos de Ação do Avatar ---
@@ -338,15 +351,15 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       onChanged: (value) {
-        // Lógica de busca (pode ser implementada depois)
+        // Lógica de busca
       },
     );
   }
 
   Widget _buildSummaryCards(ThemeData theme, double totalGasto, double meta, double disponivel) {
-    final colorTotal = theme.colorScheme.secondary.withOpacity(0.1); // Fundo Navy
-    final colorMeta = const Color(0xFFFFF7E0); // Amarelo/laranja claro
-    final colorDisponivel = theme.colorScheme.primary.withOpacity(0.1); // Fundo Verde
+    final colorTotal = theme.colorScheme.secondary.withOpacity(0.1); 
+    final colorMeta = const Color(0xFFFFF7E0); 
+    final colorDisponivel = theme.colorScheme.primary.withOpacity(0.1); 
 
     return Column(
       children: [
@@ -396,7 +409,7 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Icon(icon, size: 28, color: theme.colorScheme.secondary), // Ícone Navy
+            Icon(icon, size: 28, color: theme.colorScheme.secondary),
             const SizedBox(height: 8),
             Text(
               value,
@@ -434,13 +447,13 @@ class _HomePageState extends State<HomePage> {
           children: [
             Row(
               children: [
-                Icon(Icons.show_chart, color: theme.colorScheme.primary), // Ícone Emerald
+                Icon(Icons.show_chart, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   'Progresso da Meta',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.secondary, // Navy
+                    color: theme.colorScheme.secondary,
                   ),
                 ),
               ],
@@ -456,7 +469,7 @@ class _HomePageState extends State<HomePage> {
             LinearProgressIndicator(
               value: progressoClamped,
               backgroundColor: theme.colorScheme.onSurface.withOpacity(0.1),
-              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary), // Emerald
+              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
               minHeight: 8,
               borderRadius: BorderRadius.circular(4),
             ),
@@ -495,7 +508,7 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             children: [
               Icon(
-                Icons.check_circle_outline, // Ícone de check
+                Icons.check_circle_outline,
                 size: 60,
                 color: theme.colorScheme.onSurface.withOpacity(0.3),
               ),
@@ -529,7 +542,7 @@ class _HomePageState extends State<HomePage> {
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4.0),
           child: ListTile(
-            leading: Icon(transacao.icone, color: theme.colorScheme.primary), // Emerald
+            leading: Icon(_getIconForCategory(transacao.categoriaId), color: theme.colorScheme.primary),
             title: Text(transacao.titulo),
             trailing: Text(
               '- R\$ ${transacao.valor.toStringAsFixed(2)}',
