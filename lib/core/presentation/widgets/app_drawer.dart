@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../features/user/presentation/providers/user_provider.dart';
 
 class AppDrawer extends StatelessWidget {
-  // Mantemos apenas o callback para abrir a edição (que é uma ação de UI/Tela)
+  // Mantemos apenas o callback para abrir a edição de foto (que é uma ação externa na Home)
   final VoidCallback onEditAvatarPressed;
 
   const AppDrawer({
@@ -14,11 +14,61 @@ class AppDrawer extends StatelessWidget {
     required this.onEditAvatarPressed,
   });
 
+  // --- Método Auxiliar: Mostra o Dialog de Edição ---
+  void _showEditNameDialog(BuildContext context, String currentName) {
+    final TextEditingController controller = TextEditingController(text: currentName);
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Editar Nome'),
+          content: TextField(
+            controller: controller,
+            textCapitalization: TextCapitalization.words,
+            autofocus: true,
+            decoration: const InputDecoration(
+              hintText: 'Digite seu nome',
+              labelText: 'Nome',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final novoNome = controller.text.trim();
+                if (novoNome.isNotEmpty) {
+                  // Chama o provider para atualizar o nome
+                  // O context.read funciona aqui porque estamos dentro de um callback
+                  await context.read<UserProvider>().atualizarNome(novoNome);
+                  
+                  if (context.mounted) {
+                    Navigator.of(ctx).pop(); // Fecha o Dialog
+                    Navigator.of(context).pop(); // Fecha o Drawer
+                    
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Nome atualizado com sucesso!')),
+                    );
+                  }
+                }
+              },
+              child: const Text('Salvar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
-    // Escuta as mudanças do usuário globalmente
+    // Escuta as mudanças do usuário globalmente para atualizar o Drawer automaticamente
     final userProvider = context.watch<UserProvider>();
     final usuario = userProvider.usuario;
     final userPhotoPath = usuario?.fotoPath;
@@ -86,10 +136,8 @@ class AppDrawer extends StatelessWidget {
                   leading: const Icon(Icons.person_outline),
                   title: const Text('Editar Nome'),
                   onTap: () {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Funcionalidade "Editar Nome" a ser implementada.')),
-                    );
+                    // Chama o nosso novo método passando o nome atual
+                    _showEditNameDialog(context, userName);
                   },
                 ),
                 ListTile(

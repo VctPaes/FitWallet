@@ -45,6 +45,21 @@ class UsuarioRepositoryImpl implements UsuarioRepository {
   }
 
   @override
+  Future<void> atualizarNome(String novoNome) async {
+    final usuarioAtual = await getUsuario();
+    
+    // Cria uma cópia do usuário com o novo nome (Imutabilidade)
+    final novoUsuario = Usuario(
+      id: usuarioAtual.id,
+      nome: novoNome,
+      email: usuarioAtual.email,
+      fotoPath: usuarioAtual.fotoPath,
+    );
+    
+    await salvarUsuario(novoUsuario);
+  }
+
+  @override
   Future<void> removerFoto() async {
     final usuarioAtual = await getUsuario();
     final novoUsuario = Usuario(
