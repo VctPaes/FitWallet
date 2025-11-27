@@ -464,6 +464,9 @@ class _HomePageState extends State<HomePage> {
     }
     
     return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: transacoes.length,
       itemBuilder: (context, index) {
         final transacao = transacoes[index];
         
@@ -493,7 +496,6 @@ class _HomePageState extends State<HomePage> {
           ),
         );
       },
-      itemCount: transacoes.length,
     );
   }
   
