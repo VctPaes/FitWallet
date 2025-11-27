@@ -105,34 +105,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _mostrarOpcoesGasto(Transacao transacao) {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) {
-        return SafeArea(
-          child: Wrap(children: [
-            ListTile(
-              leading: const Icon(Icons.edit, color: Color(0xFF059669)),
-              title: const Text('Alterar'),
-              onTap: () {
-                Navigator.pop(context);
-                _navegarParaEditarGasto(transacao);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text('Remover'),
-              onTap: () {
-                Navigator.pop(context);
-                _confirmarRemocao(transacao);
-              },
-            ),
-          ]),
-        );
-      },
-    );
-  }
-
   // --- Métodos de Ação (Meta) ---
 
   void _alterarMetaSemanal(double valorAtual) {
@@ -285,12 +257,16 @@ class _HomePageState extends State<HomePage> {
     final goalProvider = context.watch<GoalProvider>();
     final userProvider = context.watch<UserProvider>();
 
-    // Dados
+    // Dados do Usuário
+    final usuario = userProvider.usuario;
+    final userPhotoPath = usuario?.fotoPath;
+    // O padrão agora é 'Estudante' se o usuário ainda não tiver carregado ou for null
+    final userName = usuario?.nome ?? 'Estudante'; 
+
     final transacoes = transactionProvider.transacoes;
     final totalGasto = transacoes.fold(0.0, (sum, item) => sum + item.valor);
     final metaValor = goalProvider.meta?.valor ?? 0.0;
     final disponivel = metaValor - totalGasto;
-    final userPhotoPath = userProvider.usuario?.fotoPath;
 
     final bool isLoading = transactionProvider.isLoading || goalProvider.isLoading;
 
@@ -311,9 +287,18 @@ class _HomePageState extends State<HomePage> {
                     ? FileImage(File(userPhotoPath))
                     : null,
                 backgroundColor: theme.colorScheme.primary,
+                // --- LÓGICA SIMPLIFICADA ---
+                // Assume que userName nunca é vazio devido às regras de negócio
                 child: userPhotoPath == null
-                    ? const Text('U', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+                    ? Text(
+                        userName[0].toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white, 
+                          fontWeight: FontWeight.bold
+                        ),
+                      )
                     : null,
+                // --------------------------
               ),
             ),
           ),
@@ -326,8 +311,6 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       drawer: AppDrawer(
-        // O AppDrawer agora busca a foto internamente via Provider,
-        // mas mantemos o callback de edição
         onEditAvatarPressed: _onEditAvatarPressed,
       ),
       body: isLoading 
@@ -483,12 +466,10 @@ class _HomePageState extends State<HomePage> {
     return ListView.builder(
       itemBuilder: (context, index) {
         final transacao = transacoes[index];
-  
-        // Busca a categoria completa pelo ID da transação
+        
         final categoryProvider = context.read<CategoryProvider>();
         final categoria = categoryProvider.getCategoriaById(transacao.categoriaId);
-  
-        // Define ícone e cor (com fallback se não encontrar)
+        
         final iconData = categoria != null 
             ? CategoryProvider.getIconFromKey(categoria.iconKey) 
             : Icons.help_outline;
@@ -500,11 +481,45 @@ class _HomePageState extends State<HomePage> {
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4.0),
           child: ListTile(
-            // Agora usa os dados dinâmicos
             leading: Icon(iconData, color: iconColor),
             title: Text(transacao.titulo),
-            // ... resto do código igual
+            subtitle: Text(
+              '${transacao.data.day}/${transacao.data.month} - R\$ ${transacao.valor.toStringAsFixed(2)}',
+            ),
+            trailing: IconButton(
+              icon: const Icon(Icons.more_vert),
+              onPressed: () => _mostrarOpcoesGasto(transacao),
+            ),
           ),
+        );
+      },
+      itemCount: transacoes.length,
+    );
+  }
+  
+  void _mostrarOpcoesGasto(Transacao transacao) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return SafeArea(
+          child: Wrap(children: [
+            ListTile(
+              leading: const Icon(Icons.edit, color: Color(0xFF059669)),
+              title: const Text('Alterar'),
+              onTap: () {
+                Navigator.pop(context);
+                _navegarParaEditarGasto(transacao);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Remover'),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmarRemocao(transacao);
+              },
+            ),
+          ]),
         );
       },
     );
