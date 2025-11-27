@@ -6,11 +6,15 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
-import '../services/finance_service.dart';
 import '../services/prefs_service.dart';
-import '../features/transaction/presentation/pages/add_gasto_page.dart';
-import '../features/transaction/domain/entities/transacao.dart'; // Nova entidade
-import '../widgets/app_drawer.dart';
+import '../widgets/app_drawer.dart'; // Certifique-se que moveu ou manteve este arquivo
+
+// --- Novos Imports da Arquitetura ---
+import '../features/transaction/presentation/providers/transaction_provider.dart';
+import '../features/transaction/domain/entities/transacao.dart';
+import '../features/transaction/presentation/pages/add_gasto_page.dart'; // Caminho novo!
+
+import '../features/goal/presentation/providers/goal_provider.dart';
 
 class HomePage extends StatefulWidget {
   final PrefsService prefs;
@@ -28,10 +32,16 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _userPhotoPath = widget.prefs.getUserPhotoPath();
+    
+    // Opcional: Recarregar dados ao entrar na tela para garantir frescor
+    // (Já carregamos no main.dart, mas mal não faz)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<TransactionProvider>().loadTransactions();
+      context.read<GoalProvider>().loadMeta();
+    });
   }
 
-  // --- Helpers ---
-
+  // --- Helpers de Ícone ---
   IconData _getIconForCategory(String categoriaId) {
     switch (categoriaId) {
       case 'cat_alimentacao': return Icons.fastfood;
@@ -43,8 +53,146 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // --- Métodos de Ação do Avatar ---
+  // --- Métodos de Ação (Transação) ---
 
+  void _navegarParaAddGasto() async {
+    final novaTransacao = await Navigator.push<Transacao>(
+      context,
+      MaterialPageRoute(builder: (context) => const AddGastoPage()),
+    );
+
+    if (novaTransacao != null && mounted) {
+      // Chama o Provider da Feature Transaction
+      try {
+        await context.read<TransactionProvider>().addTransaction(novaTransacao);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gasto adicionado com sucesso!')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao adicionar: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _navegarParaEditarGasto(Transacao transacao) async {
+    final transacaoEditada = await Navigator.push<Transacao>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddGastoPage(transacaoParaEditar: transacao),
+      ),
+    );
+
+    if (transacaoEditada != null && mounted) {
+      // O UpdateTransactionUseCase já lida com a lógica de encontrar pelo ID
+      await context.read<TransactionProvider>().updateTransaction(transacaoEditada);
+    }
+  }
+
+  void _removerGasto(String id) async {
+    await context.read<TransactionProvider>().deleteTransaction(id);
+    if (mounted) {
+      Navigator.pop(context); // Fecha o BottomSheet ou Dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gasto removido.')),
+      );
+    }
+  }
+
+  void _mostrarOpcoesGasto(Transacao transacao) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return SafeArea(
+          child: Wrap(children: [
+            ListTile(
+              leading: const Icon(Icons.edit, color: Color(0xFF059669)),
+              title: const Text('Alterar'),
+              onTap: () {
+                Navigator.pop(context);
+                _navegarParaEditarGasto(transacao);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Remover'),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmarRemocao(transacao);
+              },
+            ),
+          ]),
+        );
+      },
+    );
+  }
+
+  void _confirmarRemocao(Transacao transacao) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar Remoção'),
+        content: const Text('Você tem certeza que deseja remover este gasto?'),
+        actions: [
+          TextButton(
+            child: const Text('Cancelar'),
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+          TextButton(
+            child: const Text('Remover', style: TextStyle(color: Colors.red)),
+            onPressed: () {
+              Navigator.of(ctx).pop(); // Fecha Dialog
+              _removerGasto(transacao.id);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Métodos de Ação (Meta) ---
+
+  void _alterarMetaSemanal(double valorAtual) {
+    final controller = TextEditingController(text: valorAtual.toStringAsFixed(2));
+        
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Alterar Meta Semanal'),
+        content: TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Nova meta',
+            prefixText: 'R\$ ',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final novoValor = double.tryParse(controller.text.replaceAll(',', '.'));
+              if (novoValor != null && novoValor > 0) {
+                // Chama o Provider da Feature Goal
+                await context.read<GoalProvider>().updateMeta(novoValor);
+                if (mounted) Navigator.pop(context);
+              }
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Lógica de Imagem (Avatar) ---
+  // Mantida similar, pois interage com Local Storage direto via PrefsService
+  // Em uma V2, isso poderia virar uma feature 'user' completa.
+  
   Future<void> _onEditAvatarPressed() async {
     Navigator.pop(context); 
     await showModalBottomSheet(
@@ -54,7 +202,7 @@ class _HomePageState extends State<HomePage> {
           children: <Widget>[
             ListTile(
               leading: const Icon(Icons.camera_alt),
-              title: const Text('Tirar Foto (Câmera)'),
+              title: const Text('Tirar Foto'),
               onTap: () {
                 Navigator.of(context).pop();
                 _pickImage(ImageSource.camera);
@@ -87,20 +235,15 @@ class _HomePageState extends State<HomePage> {
     try {
       final XFile? pickedFile = await _picker.pickImage(source: source);
       if (pickedFile == null) return;
-
       final File? compressedFile = await _compressImage(pickedFile);
       if (compressedFile == null) return;
-
       final String savedPath = await _saveImageLocally(compressedFile);
-
       await widget.prefs.setUserPhotoPath(savedPath);
-      setState(() {
-        _userPhotoPath = savedPath;
-      });
+      setState(() { _userPhotoPath = savedPath; });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Falha ao selecionar imagem. Tente novamente.')),
+          const SnackBar(content: Text('Erro na imagem. Tente novamente.')),
         );
       }
     }
@@ -109,15 +252,10 @@ class _HomePageState extends State<HomePage> {
   Future<File?> _compressImage(XFile file) async {
     final result = await FlutterImageCompress.compressWithFile(
       file.path,
-      minWidth: 512,
-      minHeight: 512,
-      quality: 80,
-      autoCorrectionAngle: true,
-      keepExif: false,
+      minWidth: 512, minHeight: 512, quality: 80,
+      autoCorrectionAngle: true, keepExif: false,
     );
-
     if (result == null) return null;
-    
     final tempDir = await getTemporaryDirectory();
     final tempFile = File(p.join(tempDir.path, 'temp_compressed.jpg'));
     await tempFile.writeAsBytes(result);
@@ -127,6 +265,7 @@ class _HomePageState extends State<HomePage> {
   Future<String> _saveImageLocally(File imageFile) async {
     final directory = await getApplicationDocumentsDirectory();
     final String newPath = p.join(directory.path, 'avatar.jpg');
+    if (await File(newPath).exists()) await File(newPath).delete();
     await imageFile.copy(newPath);
     return newPath;
   }
@@ -134,187 +273,79 @@ class _HomePageState extends State<HomePage> {
   Future<void> _removeImage() async {
     if (_userPhotoPath != null) {
       final file = File(_userPhotoPath!);
-      if (await file.exists()) {
-        await file.delete();
-      }
+      if (await file.exists()) await file.delete();
     }
-    
     await widget.prefs.removeUserPhotoPath();
-    setState(() {
-      _userPhotoPath = null;
-    });
+    setState(() { _userPhotoPath = null; });
   }
 
-  // --- Métodos de Lógica (FitWallet) ---
+  // --- Build da UI ---
 
-  void _navegarParaAddGasto() async {
-    final novaTransacao = await Navigator.push<Transacao>(
-      context,
-      MaterialPageRoute(builder: (context) => const AddGastoPage()),
-    );
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
 
-    if (novaTransacao != null) {
-      context.read<FinanceService>().adicionarTransacao(novaTransacao);
-    }
-  }
+    // Consumimos os dois Providers aqui
+    final transactionProvider = context.watch<TransactionProvider>();
+    final goalProvider = context.watch<GoalProvider>();
 
-  void _navegarParaEditarGasto(int index, Transacao transacao) async {
-    final transacaoEditada = await Navigator.push<Transacao>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AddGastoPage(transacaoParaEditar: transacao),
-      ),
-    );
+    // Calculando totais
+    final transacoes = transactionProvider.transacoes;
+    final totalGasto = transacoes.fold(0.0, (sum, item) => sum + item.valor);
+    
+    // Tratamento de Meta Nula (loading ou padrão)
+    final metaValor = goalProvider.meta?.valor ?? 0.0;
+    final disponivel = metaValor - totalGasto;
 
-    if (transacaoEditada != null) {
-      context.read<FinanceService>().atualizarTransacao(index, transacaoEditada);
-    }
-  }
+    final bool isLoading = transactionProvider.isLoading || goalProvider.isLoading;
 
-  void _mostrarOpcoesGasto(int index) {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) {
-        return Wrap(children: [
-          ListTile(
-            leading: const Icon(Icons.edit, color: Color(0xFF059669)),
-            title: const Text('Alterar'),
-            onTap: () {
-              Navigator.pop(context);
-              final transacao = context.read<FinanceService>().transacoes[index];
-              _navegarParaEditarGasto(index, transacao);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.delete, color: Colors.red),
-            title: const Text('Remover'),
-            onTap: () {
-              Navigator.pop(context);
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Confirmar Remoção'),
-                  content: const Text('Você tem certeza que deseja remover este gasto?'),
-                  actions: [
-                    TextButton(
-                      child: const Text('Cancelar'),
-                      onPressed: () => Navigator.of(ctx).pop(),
-                    ),
-                    TextButton(
-                      child: const Text('Remover', style: TextStyle(color: Colors.red)),
-                      onPressed: () {
-                        Navigator.of(ctx).pop();
-                        context.read<FinanceService>().removerTransacao(index);
-                      },
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ]);
-      },
-    );
-  }
-
-  void _alterarMetaSemanal() {
-    final financeService = context.read<FinanceService>();
-    final controller = TextEditingController(
-        text: financeService.metaSemanal.toStringAsFixed(2));
-        
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Alterar Meta Semanal'),
-        content: TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Nova meta',
-            prefixText: 'R\$ ',
-          ),
-        ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('FitWallet'),
+        centerTitle: true,
+        backgroundColor: theme.colorScheme.secondary,
+        elevation: 0,
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: GestureDetector(
+              onTap: () => Scaffold.of(context).openDrawer(), // Apenas exemplo visual
+              child: CircleAvatar(
+                radius: 16,
+                backgroundImage: _userPhotoPath != null
+                    ? FileImage(File(_userPhotoPath!))
+                    : null,
+                backgroundColor: theme.colorScheme.primary,
+                child: _userPhotoPath == null
+                    ? const Text('U', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+                    : null,
+              ),
+            ),
           ),
-          TextButton(
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
             onPressed: () {
-              final novoValor = double.tryParse(controller.text.replaceAll(',', '.'));
-              if (novoValor != null && novoValor > 0) {
-                financeService.atualizarMeta(novoValor);
-                Navigator.pop(context);
-              }
+              Navigator.of(context).pushNamed('/settings');
             },
-            child: const Text('Salvar'),
           ),
         ],
       ),
+      drawer: AppDrawer(
+        userPhotoPath: _userPhotoPath,
+        onEditAvatarPressed: _onEditAvatarPressed,
+      ),
+      body: isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : _buildBody(theme, transacoes, totalGasto, metaValor, disponivel),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _navegarParaAddGasto,
+        backgroundColor: theme.colorScheme.primary,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
     );
   }
 
-  // --- Build ---
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<FinanceService>(
-      builder: (context, financeService, child) {
-        final theme = Theme.of(context);
-
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('FitWallet'),
-            centerTitle: true,
-            backgroundColor: theme.colorScheme.secondary, // Navy
-            elevation: 0,
-            actions: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: CircleAvatar(
-                  radius: 16,
-                  backgroundImage: _userPhotoPath != null
-                      ? FileImage(File(_userPhotoPath!))
-                      : null,
-                  backgroundColor: theme.colorScheme.primary, // Emerald
-                  child: _userPhotoPath == null
-                      ? const Text(
-                          'U', 
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
-                        )
-                      : null,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: () {
-                  Navigator.of(context).pushNamed('/settings');
-                },
-              ),
-            ],
-          ),
-          drawer: AppDrawer(
-            userPhotoPath: _userPhotoPath,
-            onEditAvatarPressed: _onEditAvatarPressed,
-          ),
-          body: _buildBody(financeService),
-          floatingActionButton: FloatingActionButton(
-            onPressed: _navegarParaAddGasto,
-            backgroundColor: theme.colorScheme.primary, // Emerald
-            child: const Icon(Icons.add, color: Colors.white),
-          ),
-        );
-      },
-    );
-  }
-
-  // --- Widgets do Corpo ---
-
-  Widget _buildBody(FinanceService financeService) {
-    final theme = Theme.of(context);
-    final totalGasto = financeService.transacoes.fold(0.0, (sum, item) => sum + item.valor);
-    final meta = financeService.metaSemanal;
-    final disponivel = meta - totalGasto;
-
+  Widget _buildBody(ThemeData theme, List<Transacao> transacoes, double totalGasto, double meta, double disponivel) {
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
@@ -322,20 +353,22 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height: 24),
         _buildSummaryCards(theme, totalGasto, meta, disponivel),
         const SizedBox(height: 24),
-        _buildProgressCard(theme, financeService, totalGasto, meta),
+        _buildProgressCard(theme, totalGasto, meta),
         const SizedBox(height: 24),
         Text(
           'Gastos Recentes',
           style: theme.textTheme.titleLarge?.copyWith(
-            color: theme.colorScheme.secondary, // Navy
+            color: theme.colorScheme.secondary,
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 8),
-        _buildTransacoesList(financeService),
+        _buildTransacoesList(theme, transacoes),
       ],
     );
   }
+
+  // --- Widgets Internos (Idênticos ao visual original, apenas desacoplados) ---
 
   Widget _buildSearchBar() {
     return TextField(
@@ -345,65 +378,34 @@ class _HomePageState extends State<HomePage> {
         prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4)),
         filled: true,
         fillColor: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
-          borderSide: BorderSide.none,
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide.none),
       ),
-      onChanged: (value) {
-        // Lógica de busca
-      },
+      onChanged: (value) { /* Implementar filtro no provider futuramente */ },
     );
   }
 
   Widget _buildSummaryCards(ThemeData theme, double totalGasto, double meta, double disponivel) {
-    final colorTotal = theme.colorScheme.secondary.withOpacity(0.1); 
-    final colorMeta = const Color(0xFFFFF7E0); 
-    final colorDisponivel = theme.colorScheme.primary.withOpacity(0.1); 
-
     return Column(
       children: [
-        // 1. Card da Meta (Largo, no topo)
         _buildSummaryCard(
-          theme,
-          'Meta Semanal',
-          'R\$ ${meta.toStringAsFixed(2)}',
-          Icons.flag_outlined,
-          colorMeta,
+          theme, 'Meta Semanal', 'R\$ ${meta.toStringAsFixed(2)}',
+          Icons.flag_outlined, const Color(0xFFFFF7E0),
         ),
         const SizedBox(height: 12),
-        // 2. Row com os outros dois cards
         Row(
           children: [
-            Expanded(
-              child: _buildSummaryCard(
-                theme,
-                'Gasto Total',
-                'R\$ ${totalGasto.toStringAsFixed(2)}',
-                Icons.receipt_long_outlined,
-                colorTotal,
-              ),
-            ),
+            Expanded(child: _buildSummaryCard(theme, 'Gasto Total', 'R\$ ${totalGasto.toStringAsFixed(2)}', Icons.receipt_long_outlined, theme.colorScheme.secondary.withOpacity(0.1))),
             const SizedBox(width: 12),
-            Expanded(
-              child: _buildSummaryCard(
-                theme,
-                'Disponível',
-                'R\$ ${disponivel.toStringAsFixed(2)}',
-                disponivel >= 0 ? Icons.check_circle_outline : Icons.warning_amber_outlined,
-                colorDisponivel,
-              ),
-            ),
+            Expanded(child: _buildSummaryCard(theme, 'Disponível', 'R\$ ${disponivel.toStringAsFixed(2)}', disponivel >= 0 ? Icons.check_circle_outline : Icons.warning_amber_outlined, theme.colorScheme.primary.withOpacity(0.1))),
           ],
         )
       ],
     );
   }
 
-  Widget _buildSummaryCard(ThemeData theme, String title, String value, IconData icon, Color backgroundColor) {
+  Widget _buildSummaryCard(ThemeData theme, String title, String value, IconData icon, Color bg) {
     return Card(
-      elevation: 0,
-      color: backgroundColor,
+      elevation: 0, color: bg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -411,28 +413,16 @@ class _HomePageState extends State<HomePage> {
           children: [
             Icon(icon, size: 28, color: theme.colorScheme.secondary),
             const SizedBox(height: 8),
-            Text(
-              value,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.secondary,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
+            Text(value, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.secondary), overflow: TextOverflow.ellipsis),
             const SizedBox(height: 4),
-            Text(
-              title,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
-            ),
+            Text(title, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6))),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildProgressCard(ThemeData theme, FinanceService financeService, double totalGasto, double meta) {
+  Widget _buildProgressCard(ThemeData theme, double totalGasto, double meta) {
     final double progresso = (meta > 0) ? totalGasto / meta : 0.0;
     final double progressoClamped = progresso.clamp(0.0, 1.0);
 
@@ -449,44 +439,26 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Icon(Icons.show_chart, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
-                Text(
-                  'Progresso da Meta',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.secondary,
-                  ),
-                ),
+                Text('Progresso da Meta', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.secondary)),
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              'Você já usou R\$ ${totalGasto.toStringAsFixed(2)} da sua meta de R\$ ${meta.toStringAsFixed(2)}.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
-              ),
-            ),
+            Text('Você já usou R\$ ${totalGasto.toStringAsFixed(2)} da sua meta de R\$ ${meta.toStringAsFixed(2)}.', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.7))),
             const SizedBox(height: 16),
             LinearProgressIndicator(
               value: progressoClamped,
               backgroundColor: theme.colorScheme.onSurface.withOpacity(0.1),
               valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
-              minHeight: 8,
-              borderRadius: BorderRadius.circular(4),
+              minHeight: 8, borderRadius: BorderRadius.circular(4),
             ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '${(progressoClamped * 100).toStringAsFixed(0)}% Completo',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text('${(progressoClamped * 100).toStringAsFixed(0)}% Completo', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
                 IconButton(
                   icon: Icon(Icons.edit, size: 20, color: theme.colorScheme.onSurface.withOpacity(0.5)),
-                  onPressed: _alterarMetaSemanal,
+                  onPressed: () => _alterarMetaSemanal(meta),
                   tooltip: 'Alterar Meta',
                 )
               ],
@@ -497,36 +469,17 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildTransacoesList(FinanceService financeService) {
-    final transacoes = financeService.transacoes;
-    final theme = Theme.of(context);
-
+  Widget _buildTransacoesList(ThemeData theme, List<Transacao> transacoes) {
     if (transacoes.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 40.0, horizontal: 20.0),
+          padding: const EdgeInsets.symmetric(vertical: 40.0),
           child: Column(
             children: [
-              Icon(
-                Icons.check_circle_outline,
-                size: 60,
-                color: theme.colorScheme.onSurface.withOpacity(0.3),
-              ),
+              Icon(Icons.check_circle_outline, size: 60, color: theme.colorScheme.onSurface.withOpacity(0.3)),
               const SizedBox(height: 16),
-              Text(
-                'Nenhum gasto aqui',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.onSurface.withOpacity(0.8),
-                ),
-              ),
-              Text(
-                'Adicione um gasto usando o botão +',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
-              ),
+              Text('Nenhum gasto aqui', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface.withOpacity(0.8))),
+              Text('Adicione um gasto usando o botão +', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6))),
             ],
           ),
         ),
@@ -544,14 +497,9 @@ class _HomePageState extends State<HomePage> {
           child: ListTile(
             leading: Icon(_getIconForCategory(transacao.categoriaId), color: theme.colorScheme.primary),
             title: Text(transacao.titulo),
-            trailing: Text(
-              '- R\$ ${transacao.valor.toStringAsFixed(2)}',
-              style: const TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            onTap: () => _mostrarOpcoesGasto(index),
+            subtitle: Text(transacao.data.toIso8601String().split('T')[0]), // Exibe data simples
+            trailing: Text('- R\$ ${transacao.valor.toStringAsFixed(2)}', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            onTap: () => _mostrarOpcoesGasto(transacao),
           ),
         );
       },
