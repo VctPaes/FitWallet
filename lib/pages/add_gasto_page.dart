@@ -1,25 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../models/transacao.dart';
+import '../features/transaction/domain/entities/transacao.dart'; // Importe a nova entidade
 
-// --- Modelo da Categoria (usado por esta página) ---
-class Categoria {
+// Helper visual para as categorias no Dropdown
+class CategoriaView {
+  final String id; // ID que será salvo na Entidade
   final String nome;
   final IconData icone;
-  Categoria({required this.nome, required this.icone});
+  
+  CategoriaView({
+    required this.id, 
+    required this.nome, 
+    required this.icone
+  });
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Categoria &&
+      other is CategoriaView &&
           runtimeType == other.runtimeType &&
-          nome == other.nome;
+          id == other.id;
 
   @override
-  int get hashCode => nome.hashCode;
+  int get hashCode => id.hashCode;
 }
 
-// --- Página de Adicionar/Editar Gasto ---
 class AddGastoPage extends StatefulWidget {
   final Transacao? transacaoParaEditar;
 
@@ -34,14 +39,16 @@ class _AddGastoPageState extends State<AddGastoPage> {
   final _tituloController = TextEditingController();
   final _valorController = TextEditingController();
 
-  final List<Categoria> _categorias = [
-    Categoria(nome: 'Alimentação', icone: Icons.fastfood),
-    Categoria(nome: 'Transporte', icone: Icons.directions_bus),
-    Categoria(nome: 'Lazer', icone: Icons.sports_esports),
-    Categoria(nome: 'Moradia', icone: Icons.home),
-    Categoria(nome: 'Outros', icone: Icons.more_horiz),
+  // Lista de categorias com IDs fixos para mapeamento
+  final List<CategoriaView> _categorias = [
+    CategoriaView(id: 'cat_alimentacao', nome: 'Alimentação', icone: Icons.fastfood),
+    CategoriaView(id: 'cat_transporte', nome: 'Transporte', icone: Icons.directions_bus),
+    CategoriaView(id: 'cat_lazer', nome: 'Lazer', icone: Icons.sports_esports),
+    CategoriaView(id: 'cat_moradia', nome: 'Moradia', icone: Icons.home),
+    CategoriaView(id: 'cat_outros', nome: 'Outros', icone: Icons.more_horiz),
   ];
-  Categoria? _categoriaSelecionada;
+  
+  CategoriaView? _categoriaSelecionada;
 
   bool get isEditing => widget.transacaoParaEditar != null;
 
@@ -53,8 +60,10 @@ class _AddGastoPageState extends State<AddGastoPage> {
       final gasto = widget.transacaoParaEditar!;
       _tituloController.text = gasto.titulo;
       _valorController.text = gasto.valor.toStringAsFixed(2).replaceAll('.', ',');
+      
+      // Encontra a categoria correta baseada no ID salvo
       _categoriaSelecionada = _categorias.firstWhere(
-        (cat) => cat.icone.codePoint == gasto.icone.codePoint,
+        (cat) => cat.id == gasto.categoriaId,
         orElse: () => _categorias.last,
       );
     } else {
@@ -73,12 +82,20 @@ class _AddGastoPageState extends State<AddGastoPage> {
 
   void _salvarGasto() {
     if (_formKey.currentState!.validate()) {
+      
+      // Se for edição, mantém o ID. Se for novo, gera um ID baseado no tempo.
+      final String id = isEditing 
+          ? widget.transacaoParaEditar!.id 
+          : DateTime.now().millisecondsSinceEpoch.toString();
+
       final gastoProcessado = Transacao(
+        id: id,
         titulo: _tituloController.text,
         valor: double.parse(_valorController.text.replaceAll(',', '.')),
         data: widget.transacaoParaEditar?.data ?? DateTime.now(),
-        icone: _categoriaSelecionada!.icone,
+        categoriaId: _categoriaSelecionada!.id, // Salva o ID da categoria
       );
+      
       Navigator.of(context).pop(gastoProcessado);
     }
   }
@@ -110,8 +127,7 @@ class _AddGastoPageState extends State<AddGastoPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? 'Editar Gasto' : 'Adicionar Gasto'),
-        // Define a cor da AppBar para corresponder ao tema
-        backgroundColor: theme.colorScheme.secondary, 
+        backgroundColor: theme.colorScheme.secondary, // Navy
         foregroundColor: Colors.white,
       ),
       body: Padding(
@@ -149,11 +165,11 @@ class _AddGastoPageState extends State<AddGastoPage> {
                 },
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<Categoria>(
+              DropdownButtonFormField<CategoriaView>(
                 value: _categoriaSelecionada,
                 decoration: _buildInputDecoration('Categoria'),
-                items: _categorias.map((Categoria categoria) {
-                  return DropdownMenuItem<Categoria>(
+                items: _categorias.map((CategoriaView categoria) {
+                  return DropdownMenuItem<CategoriaView>(
                     value: categoria,
                     child: Row(
                       children: [
@@ -164,7 +180,7 @@ class _AddGastoPageState extends State<AddGastoPage> {
                     ),
                   );
                 }).toList(),
-                onChanged: (Categoria? novoValor) {
+                onChanged: (CategoriaView? novoValor) {
                   setState(() {
                     _categoriaSelecionada = novoValor;
                   });
