@@ -48,6 +48,7 @@ import 'features/category/presentation/providers/category_provider.dart';
 import 'features/splash/presentation/pages/splash_page.dart';
 import 'features/onboarding/presentation/pages/onboarding_page.dart';
 import 'features/settings/presentation/pages/settings_page.dart';
+import 'features/home/presentation/pages/home_page.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -156,6 +157,7 @@ void main() async {
         Provider<UpdateUsuarioNomeUseCase>(
           create: (context) => UpdateUsuarioNomeUseCase(context.read<UsuarioRepository>()),
         ),
+        
         // Provider (Presentation)
         ChangeNotifierProvider(
           create: (context) => UserProvider(
