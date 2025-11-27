@@ -6,8 +6,8 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
-import '../services/prefs_service.dart';
-import '../widgets/app_drawer.dart';
+import '../core/services/prefs_service.dart';
+import '../core/presentation/widgets/app_drawer.dart';
 
 // --- Imports das Features (Clean Architecture) ---
 import '../features/transaction/presentation/providers/transaction_provider.dart';

@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // --- Core & Services ---
-import 'services/prefs_service.dart';
+import 'core/services/prefs_service.dart';
 
 // --- Feature: Transaction (Transações) ---
 import 'features/transaction/data/datasources/transaction_local_datasource.dart';

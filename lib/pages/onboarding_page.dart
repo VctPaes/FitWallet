@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../services/prefs_service.dart';
+import '../core/services/prefs_service.dart';
 import '../constants/legal_texts.dart';
-import '../widgets/policy_dialog.dart'; 
+import '../core/presentation/widgets/policy_dialog.dart'; 
 
 // --- PÁGINA PRINCIPAL DO ONBOARDING ---
 

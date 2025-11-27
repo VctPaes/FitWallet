@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/prefs_service.dart';
-import '../widgets/policy_dialog.dart';
+import '../core/services/prefs_service.dart';
+import '../core/presentation/widgets/policy_dialog.dart';
 import '../constants/legal_texts.dart';
 
 class SettingsPage extends StatelessWidget {
