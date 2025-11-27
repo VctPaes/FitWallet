@@ -7,14 +7,16 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
 import '../services/prefs_service.dart';
-import '../widgets/app_drawer.dart'; // Certifique-se que moveu ou manteve este arquivo
+import '../widgets/app_drawer.dart';
 
-// --- Novos Imports da Arquitetura ---
+// --- Imports das Features (Clean Architecture) ---
 import '../features/transaction/presentation/providers/transaction_provider.dart';
 import '../features/transaction/domain/entities/transacao.dart';
-import '../features/transaction/presentation/pages/add_gasto_page.dart'; // Caminho novo!
+import '../features/transaction/presentation/pages/add_gasto_page.dart';
 
 import '../features/goal/presentation/providers/goal_provider.dart';
+
+import '../features/user/presentation/providers/user_provider.dart';
 
 class HomePage extends StatefulWidget {
   final PrefsService prefs;
@@ -25,19 +27,17 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  String? _userPhotoPath;
   final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
-    _userPhotoPath = widget.prefs.getUserPhotoPath();
     
-    // Opcional: Recarregar dados ao entrar na tela para garantir frescor
-    // (Já carregamos no main.dart, mas mal não faz)
+    // Garante que os dados estejam frescos ao abrir a Home
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TransactionProvider>().loadTransactions();
       context.read<GoalProvider>().loadMeta();
+      context.read<UserProvider>().loadUsuario();
     });
   }
 
@@ -62,7 +62,6 @@ class _HomePageState extends State<HomePage> {
     );
 
     if (novaTransacao != null && mounted) {
-      // Chama o Provider da Feature Transaction
       try {
         await context.read<TransactionProvider>().addTransaction(novaTransacao);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -85,19 +84,36 @@ class _HomePageState extends State<HomePage> {
     );
 
     if (transacaoEditada != null && mounted) {
-      // O UpdateTransactionUseCase já lida com a lógica de encontrar pelo ID
       await context.read<TransactionProvider>().updateTransaction(transacaoEditada);
     }
   }
 
-  void _removerGasto(String id) async {
-    await context.read<TransactionProvider>().deleteTransaction(id);
-    if (mounted) {
-      Navigator.pop(context); // Fecha o BottomSheet ou Dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gasto removido.')),
-      );
-    }
+  void _confirmarRemocao(Transacao transacao) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar Remoção'),
+        content: const Text('Você tem certeza que deseja remover este gasto?'),
+        actions: [
+          TextButton(
+            child: const Text('Cancelar'),
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+          TextButton(
+            child: const Text('Remover', style: TextStyle(color: Colors.red)),
+            onPressed: () async {
+              Navigator.of(ctx).pop(); // Fecha Dialog
+              await context.read<TransactionProvider>().deleteTransaction(transacao.id);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Gasto removido.')),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   void _mostrarOpcoesGasto(Transacao transacao) {
@@ -128,29 +144,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _confirmarRemocao(Transacao transacao) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Confirmar Remoção'),
-        content: const Text('Você tem certeza que deseja remover este gasto?'),
-        actions: [
-          TextButton(
-            child: const Text('Cancelar'),
-            onPressed: () => Navigator.of(ctx).pop(),
-          ),
-          TextButton(
-            child: const Text('Remover', style: TextStyle(color: Colors.red)),
-            onPressed: () {
-              Navigator.of(ctx).pop(); // Fecha Dialog
-              _removerGasto(transacao.id);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   // --- Métodos de Ação (Meta) ---
 
   void _alterarMetaSemanal(double valorAtual) {
@@ -177,7 +170,6 @@ class _HomePageState extends State<HomePage> {
             onPressed: () async {
               final novoValor = double.tryParse(controller.text.replaceAll(',', '.'));
               if (novoValor != null && novoValor > 0) {
-                // Chama o Provider da Feature Goal
                 await context.read<GoalProvider>().updateMeta(novoValor);
                 if (mounted) Navigator.pop(context);
               }
@@ -189,12 +181,10 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // --- Lógica de Imagem (Avatar) ---
-  // Mantida similar, pois interage com Local Storage direto via PrefsService
-  // Em uma V2, isso poderia virar uma feature 'user' completa.
-  
+  // --- Métodos de Ação (Usuário/Avatar) ---
+
   Future<void> _onEditAvatarPressed() async {
-    Navigator.pop(context); 
+    Navigator.pop(context); // Fecha o Drawer
     await showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -216,15 +206,22 @@ class _HomePageState extends State<HomePage> {
                 _pickImage(ImageSource.gallery);
               },
             ),
-            if (_userPhotoPath != null)
-              ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text('Remover Foto', style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _removeImage();
-                },
-              ),
+            // Verifica se tem foto para mostrar opção de remover
+            Consumer<UserProvider>(
+              builder: (ctx, userProvider, _) {
+                if (userProvider.usuario?.fotoPath != null) {
+                  return ListTile(
+                    leading: const Icon(Icons.delete, color: Colors.red),
+                    title: const Text('Remover Foto', style: TextStyle(color: Colors.red)),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      _removeImage();
+                    },
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
           ],
         ),
       ),
@@ -235,11 +232,16 @@ class _HomePageState extends State<HomePage> {
     try {
       final XFile? pickedFile = await _picker.pickImage(source: source);
       if (pickedFile == null) return;
+
       final File? compressedFile = await _compressImage(pickedFile);
       if (compressedFile == null) return;
+
       final String savedPath = await _saveImageLocally(compressedFile);
-      await widget.prefs.setUserPhotoPath(savedPath);
-      setState(() { _userPhotoPath = savedPath; });
+
+      // Atualiza via Provider
+      if (mounted) {
+        await context.read<UserProvider>().atualizarFoto(savedPath);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -265,37 +267,41 @@ class _HomePageState extends State<HomePage> {
   Future<String> _saveImageLocally(File imageFile) async {
     final directory = await getApplicationDocumentsDirectory();
     final String newPath = p.join(directory.path, 'avatar.jpg');
+    // Se já existir, deleta antes de sobrescrever
     if (await File(newPath).exists()) await File(newPath).delete();
     await imageFile.copy(newPath);
     return newPath;
   }
 
   Future<void> _removeImage() async {
-    if (_userPhotoPath != null) {
-      final file = File(_userPhotoPath!);
+    final userProvider = context.read<UserProvider>();
+    final currentPath = userProvider.usuario?.fotoPath;
+    
+    if (currentPath != null) {
+      final file = File(currentPath);
       if (await file.exists()) await file.delete();
     }
-    await widget.prefs.removeUserPhotoPath();
-    setState(() { _userPhotoPath = null; });
+    
+    await userProvider.removerFoto();
   }
 
-  // --- Build da UI ---
+  // --- Build ---
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // Consumimos os dois Providers aqui
+    // Consumindo os Providers
     final transactionProvider = context.watch<TransactionProvider>();
     final goalProvider = context.watch<GoalProvider>();
+    final userProvider = context.watch<UserProvider>();
 
-    // Calculando totais
+    // Dados
     final transacoes = transactionProvider.transacoes;
     final totalGasto = transacoes.fold(0.0, (sum, item) => sum + item.valor);
-    
-    // Tratamento de Meta Nula (loading ou padrão)
     final metaValor = goalProvider.meta?.valor ?? 0.0;
     final disponivel = metaValor - totalGasto;
+    final userPhotoPath = userProvider.usuario?.fotoPath;
 
     final bool isLoading = transactionProvider.isLoading || goalProvider.isLoading;
 
@@ -309,14 +315,14 @@ class _HomePageState extends State<HomePage> {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: GestureDetector(
-              onTap: () => Scaffold.of(context).openDrawer(), // Apenas exemplo visual
+              onTap: () => Scaffold.of(context).openDrawer(),
               child: CircleAvatar(
                 radius: 16,
-                backgroundImage: _userPhotoPath != null
-                    ? FileImage(File(_userPhotoPath!))
+                backgroundImage: userPhotoPath != null
+                    ? FileImage(File(userPhotoPath))
                     : null,
                 backgroundColor: theme.colorScheme.primary,
-                child: _userPhotoPath == null
+                child: userPhotoPath == null
                     ? const Text('U', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
                     : null,
               ),
@@ -331,7 +337,8 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       drawer: AppDrawer(
-        userPhotoPath: _userPhotoPath,
+        // O AppDrawer agora busca a foto internamente via Provider,
+        // mas mantemos o callback de edição
         onEditAvatarPressed: _onEditAvatarPressed,
       ),
       body: isLoading 
@@ -368,8 +375,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // --- Widgets Internos (Idênticos ao visual original, apenas desacoplados) ---
-
   Widget _buildSearchBar() {
     return TextField(
       decoration: InputDecoration(
@@ -380,7 +385,7 @@ class _HomePageState extends State<HomePage> {
         fillColor: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide.none),
       ),
-      onChanged: (value) { /* Implementar filtro no provider futuramente */ },
+      onChanged: (value) { /* Implementar filtro no TransactionProvider */ },
     );
   }
 
@@ -497,7 +502,7 @@ class _HomePageState extends State<HomePage> {
           child: ListTile(
             leading: Icon(_getIconForCategory(transacao.categoriaId), color: theme.colorScheme.primary),
             title: Text(transacao.titulo),
-            subtitle: Text(transacao.data.toIso8601String().split('T')[0]), // Exibe data simples
+            subtitle: Text(transacao.data.toIso8601String().split('T')[0]), 
             trailing: Text('- R\$ ${transacao.valor.toStringAsFixed(2)}', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
             onTap: () => _mostrarOpcoesGasto(transacao),
           ),
