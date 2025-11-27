@@ -1,3 +1,4 @@
+import 'dart:math'; // Para simular delay aleatório
 import '../../domain/entities/transacao.dart';
 import '../../domain/repositories/transaction_repository.dart';
 import '../datasources/transaction_local_datasource.dart';
@@ -9,32 +10,49 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
   TransactionRepositoryImpl(this.dataSource, this.mapper);
 
+  // --- Implementação dos Novos Métodos ---
+
   @override
-  Future<List<Transacao>> getTransactions() async {
+  Future<List<Transacao>> loadFromCache() async {
+    // Busca direto do SharedPreferences
     final dtos = await dataSource.getTransactions();
-    // Converte a lista de DTOs para Entidades usando o Mapper
     return dtos.map((dto) => mapper.toEntity(dto)).toList();
   }
 
   @override
+  Future<int> syncFromServer() async {
+    // SIMULAÇÃO DE API: Finge que foi ao servidor buscar dados
+    await Future.delayed(const Duration(seconds: 2)); 
+    
+    // Aqui você implementaria a lógica real:
+    // 1. GET /transactions?last_sync=...
+    // 2. Comparar com local
+    // 3. Salvar novos itens no dataSource
+    
+    // Por enquanto, retornamos 0 indicando que não há dados novos do servidor
+    return 0; 
+  }
+
+  @override
+  Future<List<Transacao>> listAll() async {
+    // No nosso caso, é igual ao loadFromCache
+    return loadFromCache();
+  }
+
+  // --- Implementação dos Métodos Originais (CRUD) ---
+
+  @override
   Future<void> addTransaction(Transacao transacao) async {
-    // 1. Busca a lista atual
     final dtos = await dataSource.getTransactions();
-    
-    // 2. Converte a nova transação para DTO e adiciona no início da lista
+    // Adiciona no início da lista
     dtos.insert(0, mapper.toDto(transacao));
-    
-    // 3. Salva a lista atualizada
     await dataSource.saveTransactions(dtos);
   }
 
   @override
   Future<void> updateTransaction(Transacao transacao) async {
     final dtos = await dataSource.getTransactions();
-    
-    // Encontra o índice da transação pelo ID
     final index = dtos.indexWhere((t) => t.id == transacao.id);
-    
     if (index != -1) {
       dtos[index] = mapper.toDto(transacao);
       await dataSource.saveTransactions(dtos);
@@ -44,10 +62,7 @@ class TransactionRepositoryImpl implements TransactionRepository {
   @override
   Future<void> deleteTransaction(String id) async {
     final dtos = await dataSource.getTransactions();
-    
-    // Remove o item que tem o ID correspondente
     dtos.removeWhere((t) => t.id == id);
-    
     await dataSource.saveTransactions(dtos);
   }
 }

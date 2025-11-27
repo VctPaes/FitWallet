@@ -91,7 +91,7 @@ void main() async {
         // Provider (Presentation)
         ChangeNotifierProvider(
           create: (context) => TransactionProvider(
-            getTransactionsUseCase: context.read<GetTransactionsUseCase>(),
+            repository: context.read<TransactionRepository>(),
             addTransactionUseCase: context.read<AddTransactionUseCase>(),
             updateTransactionUseCase: context.read<UpdateTransactionUseCase>(),
             deleteTransactionUseCase: context.read<DeleteTransactionUseCase>(),

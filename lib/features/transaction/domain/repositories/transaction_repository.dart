@@ -1,15 +1,21 @@
 import '../entities/transacao.dart';
 
 abstract class TransactionRepository {
-  // Busca todas as transações
-  Future<List<Transacao>> getTransactions();
+  // --- Novos Métodos (Leitura & Sync) ---
   
-  // Adiciona uma nova transação
+  /// Carrega dados locais imediatamente.
+  Future<List<Transacao>> loadFromCache();
+
+  /// Simula uma sincronização com servidor (retorna qtde de novos itens).
+  Future<int> syncFromServer();
+
+  /// Retorna a lista consolidada.
+  Future<List<Transacao>> listAll();
+
+  // --- Métodos Originais (CRUD) ---
+  // Mantidos para não quebrar a funcionalidade de adicionar gastos
+  
   Future<void> addTransaction(Transacao transacao);
-  
-  // Atualiza uma transação existente
   Future<void> updateTransaction(Transacao transacao);
-  
-  // Remove uma transação pelo ID
   Future<void> deleteTransaction(String id);
 }
