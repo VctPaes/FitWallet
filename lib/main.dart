@@ -33,6 +33,7 @@ import 'features/user/domain/repositories/usuario_repository.dart';
 import 'features/user/domain/usecases/get_usuario_usecase.dart';
 import 'features/user/domain/usecases/update_usuario_foto_usecase.dart';
 import 'features/user/domain/usecases/remove_usuario_foto_usecase.dart';
+import 'features/user/domain/usecases/update_usuario_nome_usecase.dart'; // <--- Importado aqui
 import 'features/user/presentation/providers/user_provider.dart';
 
 // --- Feature: Category (Categoria) ---
@@ -44,11 +45,10 @@ import 'features/category/domain/usecases/get_categorias_usecase.dart';
 import 'features/category/presentation/providers/category_provider.dart';
 
 // --- Pages (Telas) ---
-// Nota: Certifique-se de que os arquivos foram movidos para estes locais
 import 'features/splash/presentation/pages/splash_page.dart';
 import 'features/onboarding/presentation/pages/onboarding_page.dart';
 import 'features/settings/presentation/pages/settings_page.dart';
-import 'features/home/presentation/pages/home_page.dart'; // Mantido em 'pages' conforme estrutura atual
+import 'features/home/presentation/pages/home_page.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -153,12 +153,19 @@ void main() async {
         Provider<RemoveUsuarioFotoUseCase>(
           create: (context) => RemoveUsuarioFotoUseCase(context.read<UsuarioRepository>()),
         ),
+        // --- Novo UseCase para Editar Nome ---
+        Provider<UpdateUsuarioNomeUseCase>(
+          create: (context) => UpdateUsuarioNomeUseCase(context.read<UsuarioRepository>()),
+        ),
+        
         // Provider (Presentation)
         ChangeNotifierProvider(
           create: (context) => UserProvider(
             getUsuarioUseCase: context.read<GetUsuarioUseCase>(),
             updateUsuarioFotoUseCase: context.read<UpdateUsuarioFotoUseCase>(),
             removeUsuarioFotoUseCase: context.read<RemoveUsuarioFotoUseCase>(),
+            // Injete o novo UseCase aqui:
+            updateUsuarioNomeUseCase: context.read<UpdateUsuarioNomeUseCase>(),
           )..loadUsuario(),
         ),
 
@@ -224,7 +231,6 @@ class FitWalletApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
       routes: {
-        // Rotas apontando para os locais corretos nas Features
         '/': (ctx) => SplashPage(prefs: prefs),
         '/onboarding': (ctx) => OnboardingPage(prefs: prefs),
         '/settings': (ctx) => SettingsPage(prefs: prefs),
