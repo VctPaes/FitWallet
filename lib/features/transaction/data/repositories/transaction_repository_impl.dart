@@ -1,68 +1,94 @@
-import 'dart:math'; // Para simular delay aleatório
 import '../../domain/entities/transacao.dart';
 import '../../domain/repositories/transaction_repository.dart';
 import '../datasources/transaction_local_datasource.dart';
+import '../datasources/transaction_remote_datasource.dart'; 
 import '../mappers/transacao_mapper.dart';
 
 class TransactionRepositoryImpl implements TransactionRepository {
-  final TransactionLocalDataSource dataSource;
+  final TransactionLocalDataSource localDataSource;
+  final TransactionRemoteDataSource remoteDataSource;
   final TransacaoMapper mapper;
 
-  TransactionRepositoryImpl(this.dataSource, this.mapper);
-
-  // --- Implementação dos Novos Métodos ---
+  TransactionRepositoryImpl(
+    this.localDataSource, 
+    this.remoteDataSource, 
+    this.mapper
+  );
 
   @override
   Future<List<Transacao>> loadFromCache() async {
-    // Busca direto do SharedPreferences
-    final dtos = await dataSource.getTransactions();
+    final dtos = await localDataSource.getTransactions();
     return dtos.map((dto) => mapper.toEntity(dto)).toList();
   }
 
   @override
   Future<int> syncFromServer() async {
-    // SIMULAÇÃO DE API: Finge que foi ao servidor buscar dados
-    await Future.delayed(const Duration(seconds: 2)); 
-    
-    // Aqui você implementaria a lógica real:
-    // 1. GET /transactions?last_sync=...
-    // 2. Comparar com local
-    // 3. Salvar novos itens no dataSource
-    
-    // Por enquanto, retornamos 0 indicando que não há dados novos do servidor
-    return 0; 
+    try {
+      final remoteDtos = await remoteDataSource.getTransactions();
+      await localDataSource.saveTransactions(remoteDtos);
+      return remoteDtos.length;
+    } catch (e) {
+      print('Erro de sync: $e');
+      return 0;
+    }
   }
 
   @override
   Future<List<Transacao>> listAll() async {
-    // No nosso caso, é igual ao loadFromCache
     return loadFromCache();
   }
 
-  // --- Implementação dos Métodos Originais (CRUD) ---
+  // --- CRUD (Offline-First) ---
 
   @override
   Future<void> addTransaction(Transacao transacao) async {
-    final dtos = await dataSource.getTransactions();
-    // Adiciona no início da lista
-    dtos.insert(0, mapper.toDto(transacao));
-    await dataSource.saveTransactions(dtos);
+    final dto = mapper.toDto(transacao);
+    
+    // 1. Salva Local
+    final localDtos = await localDataSource.getTransactions();
+    localDtos.insert(0, dto);
+    await localDataSource.saveTransactions(localDtos);
+
+    // 2. Tenta Remoto
+    try {
+      await remoteDataSource.addTransaction(dto);
+    } catch (e) {
+      print('Erro ao enviar para Supabase (Add): $e');
+    }
   }
 
   @override
   Future<void> updateTransaction(Transacao transacao) async {
-    final dtos = await dataSource.getTransactions();
+    final dto = mapper.toDto(transacao);
+
+    // 1. Atualiza Local
+    final dtos = await localDataSource.getTransactions();
     final index = dtos.indexWhere((t) => t.id == transacao.id);
     if (index != -1) {
-      dtos[index] = mapper.toDto(transacao);
-      await dataSource.saveTransactions(dtos);
+      dtos[index] = dto;
+      await localDataSource.saveTransactions(dtos);
+    }
+
+    // 2. Tenta Remoto
+    try {
+      await remoteDataSource.updateTransaction(dto);
+    } catch (e) {
+      print('Erro ao enviar para Supabase (Update): $e');
     }
   }
 
   @override
   Future<void> deleteTransaction(String id) async {
-    final dtos = await dataSource.getTransactions();
+    // 1. Remove Local
+    final dtos = await localDataSource.getTransactions();
     dtos.removeWhere((t) => t.id == id);
-    await dataSource.saveTransactions(dtos);
+    await localDataSource.saveTransactions(dtos);
+
+    // 2. Tenta Remoto
+    try {
+      await remoteDataSource.deleteTransaction(id);
+    } catch (e) {
+      print('Erro ao enviar para Supabase (Delete): $e');
+    }
   }
 }
