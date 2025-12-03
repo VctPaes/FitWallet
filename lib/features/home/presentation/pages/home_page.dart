@@ -13,6 +13,7 @@ import '../../../transaction/presentation/providers/transaction_provider.dart';
 import '../../../transaction/domain/entities/transacao.dart';
 import '../../../transaction/presentation/pages/add_gasto_page.dart';
 import '../../../transaction/presentation/widgets/transaction_list_widget.dart';
+import '../../../transaction/presentation/widgets/transaction_actions_sheet.dart';
 
 import '../../../goal/presentation/providers/goal_provider.dart';
 
@@ -61,47 +62,6 @@ class _HomePageState extends State<HomePage> {
         );
       }
     }
-  }
-
-  void _navegarParaEditarGasto(Transacao transacao) async {
-    final transacaoEditada = await Navigator.push<Transacao>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AddGastoPage(transacaoParaEditar: transacao),
-      ),
-    );
-
-    if (transacaoEditada != null && mounted) {
-      await context.read<TransactionProvider>().updateTransaction(transacaoEditada);
-    }
-  }
-
-  void _confirmarRemocao(Transacao transacao) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Confirmar Remoção'),
-        content: const Text('Você tem certeza que deseja remover este gasto?'),
-        actions: [
-          TextButton(
-            child: const Text('Cancelar'),
-            onPressed: () => Navigator.of(ctx).pop(),
-          ),
-          TextButton(
-            child: const Text('Remover', style: TextStyle(color: Colors.red)),
-            onPressed: () async {
-              Navigator.of(ctx).pop(); // Fecha Dialog
-              await context.read<TransactionProvider>().deleteTransaction(transacao.id);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Gasto removido.')),
-                );
-              }
-            },
-          ),
-        ],
-      ),
-    );
   }
 
   // --- Métodos de Ação (Meta) ---
@@ -342,8 +302,13 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(height: 8),
         TransactionListWidget(
-          onTransactionTap: _mostrarOpcoesGasto, 
-    ),
+          onTransactionTap: (transacao) {
+            showModalBottomSheet(
+              context: context,
+              builder: (_) => TransactionActionsSheet(transacao: transacao),
+            );
+          },
+        ),
       ],
     );
   }
@@ -444,34 +409,6 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-    );
-  }
-  
-  void _mostrarOpcoesGasto(Transacao transacao) {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) {
-        return SafeArea(
-          child: Wrap(children: [
-            ListTile(
-              leading: const Icon(Icons.edit, color: Color(0xFF059669)),
-              title: const Text('Alterar'),
-              onTap: () {
-                Navigator.pop(context);
-                _navegarParaEditarGasto(transacao);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text('Remover'),
-              onTap: () {
-                Navigator.pop(context);
-                _confirmarRemocao(transacao);
-              },
-            ),
-          ]),
-        );
-      },
     );
   }
 }
