@@ -9,11 +9,10 @@ import 'package:path/path.dart' as p;
 import '../../../../core/services/prefs_service.dart';
 import '../../../../core/presentation/widgets/drawer/app_drawer.dart';
 
-// --- Imports das Features (Clean Architecture) ---
 import '../../../transaction/presentation/providers/transaction_provider.dart';
 import '../../../transaction/domain/entities/transacao.dart';
 import '../../../transaction/presentation/pages/add_gasto_page.dart';
-import '../../../category/presentation/providers/category_provider.dart';
+import '../../../transaction/presentation/widgets/transaction_list_widget.dart';
 
 import '../../../goal/presentation/providers/goal_provider.dart';
 
@@ -342,7 +341,9 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         const SizedBox(height: 8),
-        _buildTransacoesList(theme, transacoes),
+        TransactionListWidget(
+          onTransactionTap: _mostrarOpcoesGasto, 
+    ),
       ],
     );
   }
@@ -443,59 +444,6 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildTransacoesList(ThemeData theme, List<Transacao> transacoes) {
-    if (transacoes.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 40.0),
-          child: Column(
-            children: [
-              Icon(Icons.check_circle_outline, size: 60, color: theme.colorScheme.onSurface.withOpacity(0.3)),
-              const SizedBox(height: 16),
-              Text('Nenhum gasto aqui', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface.withOpacity(0.8))),
-              Text('Adicione um gasto usando o botão +', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6))),
-            ],
-          ),
-        ),
-      );
-    }
-    
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: transacoes.length,
-      itemBuilder: (context, index) {
-        final transacao = transacoes[index];
-        
-        final categoryProvider = context.read<CategoryProvider>();
-        final categoria = categoryProvider.getCategoriaById(transacao.categoriaId);
-        
-        final iconData = categoria != null 
-            ? CategoryProvider.getIconFromKey(categoria.iconKey) 
-            : Icons.help_outline;
-      
-       final iconColor = categoria != null 
-            ? Color(categoria.corHex) 
-            : theme.colorScheme.primary;
-
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 4.0),
-          child: ListTile(
-            leading: Icon(iconData, color: iconColor),
-            title: Text(transacao.titulo),
-            subtitle: Text(
-              '${transacao.data.day}/${transacao.data.month} - R\$ ${transacao.valor.toStringAsFixed(2)}',
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.more_vert),
-              onPressed: () => _mostrarOpcoesGasto(transacao),
-            ),
-          ),
-        );
-      },
     );
   }
   
