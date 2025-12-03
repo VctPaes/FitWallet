@@ -14,29 +14,31 @@ class TransactionActionsSheet extends StatelessWidget {
 
   // --- Lógica de Edição ---
   void _editar(BuildContext context) async {
-    // 1. Fecha o BottomSheet primeiro
-    Navigator.pop(context);
+    // 1. Capturar referências ANTES de fechar o modal (pois o contexto será invalidado)
+    final provider = context.read<TransactionProvider>();
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
 
-    // 2. Navega para a página de edição
-    final transacaoEditada = await Navigator.push<Transacao>(
-      context,
+    // 2. Fecha o BottomSheet
+    navigator.pop(); 
+
+    // 3. Navega para a página de edição usando o navigator capturado
+    final transacaoEditada = await navigator.push<Transacao>(
       MaterialPageRoute(
         builder: (context) => AddGastoPage(transacaoParaEditar: transacao),
       ),
     );
 
-    // 3. Se houve retorno (salvou), atualiza o provider
-    if (transacaoEditada != null && context.mounted) {
+    // 4. Se houve retorno (salvou), atualiza usando o provider capturado
+    if (transacaoEditada != null) {
       try {
-        await context
-            .read<TransactionProvider>()
-            .updateTransaction(transacaoEditada);
-            
-        ScaffoldMessenger.of(context).showSnackBar(
+        await provider.updateTransaction(transacaoEditada);
+        
+        messenger.showSnackBar(
           const SnackBar(content: Text('Transação atualizada com sucesso!')),
         );
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
             content: Text('Erro ao atualizar: $e'),
             backgroundColor: Colors.red,
@@ -48,12 +50,20 @@ class TransactionActionsSheet extends StatelessWidget {
 
   // --- Lógica de Remoção ---
   void _confirmarRemocao(BuildContext context) {
-    // 1. Fecha o BottomSheet
-    Navigator.pop(context);
+    // 1. Capturar referências necessárias
+    final provider = context.read<TransactionProvider>();
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
 
-    // 2. Abre o Dialog de confirmação
+    // 2. Fecha o BottomSheet atual
+    navigator.pop();
+
+    // 3. Abre o Dialog de confirmação
+    // Nota: Usamos 'context' aqui apenas para criar o Dialog, o que é seguro pois
+    // showDialog cria uma nova rota acima da atual.
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         title: const Text('Remover Transação?'),
         content: Text('Deseja realmente remover "${transacao.titulo}"?'),
@@ -67,25 +77,19 @@ class TransactionActionsSheet extends StatelessWidget {
             onPressed: () async {
               Navigator.of(ctx).pop(); // Fecha o Dialog
               
-              // Chama o provider para deletar
+              // Usa o provider capturado no início do método
               try {
-                await context
-                    .read<TransactionProvider>()
-                    .deleteTransaction(transacao.id);
-                    
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Transação removida.')),
-                  );
-                }
+                await provider.deleteTransaction(transacao.id);
+                
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Transação removida.')),
+                );
               } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Erro ao remover.'),
-                        backgroundColor: Colors.red),
-                  );
-                }
+                messenger.showSnackBar(
+                  const SnackBar(
+                      content: Text('Erro ao remover.'),
+                      backgroundColor: Colors.red),
+                );
               }
             },
           ),
