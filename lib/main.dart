@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 // --- Core & Services ---
 import 'core/services/prefs_service.dart';
 
 // --- Feature: Transaction (Transações) ---
 import 'features/transaction/data/datasources/transaction_local_datasource.dart';
+import 'features/transaction/data/datasources/transaction_remote_datasource.dart';
 import 'features/transaction/data/mappers/transacao_mapper.dart';
 import 'features/transaction/data/repositories/transaction_repository_impl.dart';
 import 'features/transaction/domain/repositories/transaction_repository.dart';
@@ -33,7 +36,7 @@ import 'features/user/domain/repositories/usuario_repository.dart';
 import 'features/user/domain/usecases/get_usuario_usecase.dart';
 import 'features/user/domain/usecases/update_usuario_foto_usecase.dart';
 import 'features/user/domain/usecases/remove_usuario_foto_usecase.dart';
-import 'features/user/domain/usecases/update_usuario_nome_usecase.dart'; // <--- Importado aqui
+import 'features/user/domain/usecases/update_usuario_nome_usecase.dart';
 import 'features/user/presentation/providers/user_provider.dart';
 
 // --- Feature: Category (Categoria) ---
@@ -53,7 +56,13 @@ import 'features/home/presentation/pages/home_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Inicialização de Serviços Externos
+  await dotenv.load(fileName: ".env");
+
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+  );
+
   final prefsService = await PrefsService.init();
   final sharedPreferences = await SharedPreferences.getInstance();
 
@@ -66,12 +75,16 @@ void main() async {
         Provider<TransactionLocalDataSource>(
           create: (_) => TransactionLocalDataSourceImpl(sharedPreferences),
         ),
+        Provider<TransactionRemoteDataSource>(
+          create: (_) => TransactionRemoteDataSourceImpl(Supabase.instance.client),
+        ),
         Provider<TransacaoMapper>(
           create: (_) => TransacaoMapper(),
         ),
         Provider<TransactionRepository>(
           create: (context) => TransactionRepositoryImpl(
             context.read<TransactionLocalDataSource>(),
+            context.read<TransactionRemoteDataSource>(),
             context.read<TransacaoMapper>(),
           ),
         ),
@@ -91,7 +104,7 @@ void main() async {
         // Provider (Presentation)
         ChangeNotifierProvider(
           create: (context) => TransactionProvider(
-            getTransactionsUseCase: context.read<GetTransactionsUseCase>(),
+            repository: context.read<TransactionRepository>(),
             addTransactionUseCase: context.read<AddTransactionUseCase>(),
             updateTransactionUseCase: context.read<UpdateTransactionUseCase>(),
             deleteTransactionUseCase: context.read<DeleteTransactionUseCase>(),
