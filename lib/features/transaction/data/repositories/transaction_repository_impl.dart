@@ -4,6 +4,7 @@ import '../datasources/transaction_local_datasource.dart';
 import '../datasources/transaction_remote_datasource.dart';
 import '../dtos/transacao_dto.dart';
 import '../mappers/transacao_mapper.dart';
+import 'package:flutter/foundation.dart';
 
 class TransactionRepositoryImpl implements TransactionRepository {
   final TransactionLocalDataSource localDataSource;
@@ -27,26 +28,34 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
   @override
   Future<int> syncFromServer() async {
+    if (kDebugMode) print('TransactionRepository: Iniciando Sincronização...');
     try {
-      // 1. PUSH: Envia o que está pendente localmente antes de baixar
+      // 1. Push
       await _syncPendingChanges();
 
-      // 2. PULL: Baixa apenas o que mudou (Incremental)
+      // 2. Pull
       final lastSync = await localDataSource.getLastSyncTime();
-      final newRemoteDtos = await remoteDataSource.getTransactions(after: lastSync);
+      if (kDebugMode) print('TransactionRepository: Último sync em $lastSync');
+
+      final newRemoteDtos =
+          await remoteDataSource.getTransactions(after: lastSync);
 
       if (newRemoteDtos.isNotEmpty) {
-        // Mescla os dados novos com o cache local
+        if (kDebugMode)
+          print(
+              'TransactionRepository: Processando ${newRemoteDtos.length} novos itens...');
         await _mergeRemoteData(newRemoteDtos);
-        
-        // Atualiza timestamp do último sync (usa o horário atual do dispositivo ou do último item)
-        await localDataSource.saveLastSyncTime(DateTime.now().toIso8601String());
+
+        // Atualiza timestamp
+        final now = DateTime.now().toIso8601String();
+        await localDataSource.saveLastSyncTime(now);
       }
 
       return newRemoteDtos.length;
     } catch (e) {
-      print('Sync falhou (modo offline mantido): $e');
-      return 0;
+      if (kDebugMode)
+        print('TransactionRepository: Erro no Sync (Modo Offline mantido): $e');
+      return 0; // Falha silenciosa para o usuário, mas logada
     }
   }
 
@@ -61,7 +70,7 @@ class TransactionRepositoryImpl implements TransactionRepository {
         // Nota: Em um cenário real complexo, você verificaria se é insert/update/delete
         // Aqui assumimos insert/update baseados na lógica simplificada
         await remoteDataSource.addTransaction(dto); // Ou upsert se suportado
-        
+
         // Se sucesso, marca como sincronizado localmente
         final index = localDtos.indexWhere((t) => t.id == dto.id);
         if (index != -1) {
@@ -78,10 +87,10 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
   Future<void> _mergeRemoteData(List<TransacaoDTO> newRemoteData) async {
     final localDtos = await localDataSource.getTransactions();
-    
+
     for (final remoteItem in newRemoteData) {
       final index = localDtos.indexWhere((l) => l.id == remoteItem.id);
-      
+
       // Se o item remoto tem deletedAt, removemos do local definitivamente (ou marcamos)
       // Aqui, para limpar o armazenamento, vamos remover da lista local
       if (remoteItem.deletedAt != null) {
@@ -104,26 +113,22 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
   @override
   Future<void> addTransaction(Transacao transacao) async {
-    // 1. Cria DTO já assumindo falha (sincronizado = false)
-    // Isso garante que se a internet cair no meio do try, ele já está na fila
     var dto = mapper.toDto(transacao).copyWith(sincronizado: false);
 
-    // 2. Salva Local (Instantâneo)
     final localDtos = await localDataSource.getTransactions();
     localDtos.insert(0, dto);
     await localDataSource.saveTransactions(localDtos);
 
-    // 3. Tenta Enviar
     try {
       await remoteDataSource.addTransaction(dto);
-      
-      // Se deu certo, atualiza local para true
+
       dto = dto.copyWith(sincronizado: true);
-      localDtos[0] = dto; // O item 0 é o que acabamos de inserir
+      localDtos[0] = dto;
       await localDataSource.saveTransactions(localDtos);
     } catch (e) {
-      print('Sem internet. Salvo localmente para sync futuro.');
-      // Não faz nada, pois já salvamos como false no passo 2
+      if (kDebugMode) {
+        print('Sem internet. Salvo localmente para sync futuro.');
+      }
     }
   }
 
@@ -140,7 +145,6 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
     try {
       await remoteDataSource.updateTransaction(dto);
-      // Sucesso: marca como true
       if (index != -1) {
         localDtos[index] = dto.copyWith(sincronizado: true);
         await localDataSource.saveTransactions(localDtos);
@@ -154,7 +158,7 @@ class TransactionRepositoryImpl implements TransactionRepository {
   Future<void> deleteTransaction(String id) async {
     final localDtos = await localDataSource.getTransactions();
     final index = localDtos.indexWhere((t) => t.id == id);
-    
+
     if (index != -1) {
       final deletedItem = localDtos[index].copyWith(
         sincronizado: false,
@@ -165,7 +169,7 @@ class TransactionRepositoryImpl implements TransactionRepository {
 
       try {
         await remoteDataSource.deleteTransaction(id);
-        
+
         localDtos[index] = deletedItem.copyWith(sincronizado: true);
         await localDataSource.saveTransactions(localDtos);
       } catch (e) {
@@ -173,7 +177,7 @@ class TransactionRepositoryImpl implements TransactionRepository {
       }
     }
   }
-  
+
   @override
   Future<List<Transacao>> listAll() async {
     return loadFromCache();

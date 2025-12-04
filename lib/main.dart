@@ -27,6 +27,7 @@ import 'features/goal/domain/repositories/meta_repository.dart';
 import 'features/goal/domain/usecases/get_meta_usecase.dart';
 import 'features/goal/domain/usecases/update_meta_usecase.dart';
 import 'features/goal/presentation/providers/goal_provider.dart';
+import 'features/goal/data/datasources/meta_remote_datasource.dart';
 
 // --- Feature: User (Usuário) ---
 import 'features/user/data/datasources/usuario_local_datasource.dart';
@@ -38,6 +39,7 @@ import 'features/user/domain/usecases/update_usuario_foto_usecase.dart';
 import 'features/user/domain/usecases/remove_usuario_foto_usecase.dart';
 import 'features/user/domain/usecases/update_usuario_nome_usecase.dart';
 import 'features/user/presentation/providers/user_provider.dart';
+import 'features/user/data/datasources/usuario_remote_datasource.dart';
 
 // --- Feature: Category (Categoria) ---
 import 'features/category/data/datasources/categoria_local_datasource.dart';
@@ -51,7 +53,7 @@ import 'features/category/presentation/providers/category_provider.dart';
 import 'features/splash/presentation/pages/splash_page.dart';
 import 'features/onboarding/presentation/pages/onboarding_page.dart';
 import 'features/settings/presentation/pages/settings_page.dart';
-import 'features/home/presentation/pages/home_page.dart'; 
+import 'features/home/presentation/pages/home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -76,7 +78,8 @@ void main() async {
           create: (_) => TransactionLocalDataSourceImpl(sharedPreferences),
         ),
         Provider<TransactionRemoteDataSource>(
-          create: (_) => TransactionRemoteDataSourceImpl(Supabase.instance.client),
+          create: (_) =>
+              TransactionRemoteDataSourceImpl(Supabase.instance.client),
         ),
         Provider<TransacaoMapper>(
           create: (_) => TransacaoMapper(),
@@ -90,16 +93,20 @@ void main() async {
         ),
         // UseCases
         Provider<GetTransactionsUseCase>(
-          create: (context) => GetTransactionsUseCase(context.read<TransactionRepository>()),
+          create: (context) =>
+              GetTransactionsUseCase(context.read<TransactionRepository>()),
         ),
         Provider<AddTransactionUseCase>(
-          create: (context) => AddTransactionUseCase(context.read<TransactionRepository>()),
+          create: (context) =>
+              AddTransactionUseCase(context.read<TransactionRepository>()),
         ),
         Provider<UpdateTransactionUseCase>(
-          create: (context) => UpdateTransactionUseCase(context.read<TransactionRepository>()),
+          create: (context) =>
+              UpdateTransactionUseCase(context.read<TransactionRepository>()),
         ),
         Provider<DeleteTransactionUseCase>(
-          create: (context) => DeleteTransactionUseCase(context.read<TransactionRepository>()),
+          create: (context) =>
+              DeleteTransactionUseCase(context.read<TransactionRepository>()),
         ),
         // Provider (Presentation)
         ChangeNotifierProvider(
@@ -117,23 +124,25 @@ void main() async {
         Provider<MetaLocalDataSource>(
           create: (_) => MetaLocalDataSourceImpl(sharedPreferences),
         ),
+        Provider<MetaRemoteDataSource>(
+          create: (_) => MetaRemoteDataSourceImpl(Supabase.instance.client),
+        ),
         Provider<MetaMapper>(
           create: (_) => MetaMapper(),
         ),
         Provider<MetaRepository>(
           create: (context) => MetaRepositoryImpl(
             context.read<MetaLocalDataSource>(),
+            context.read<MetaRemoteDataSource>(),
             context.read<MetaMapper>(),
           ),
         ),
-        // UseCases
         Provider<GetMetaUseCase>(
           create: (context) => GetMetaUseCase(context.read<MetaRepository>()),
         ),
         Provider<UpdateMetaUseCase>(
           create: (context) => UpdateMetaUseCase(context.read<MetaRepository>()),
         ),
-        // Provider (Presentation)
         ChangeNotifierProvider(
           create: (context) => GoalProvider(
             getMetaUseCase: context.read<GetMetaUseCase>(),
@@ -147,16 +156,19 @@ void main() async {
         Provider<UsuarioLocalDataSource>(
           create: (_) => UsuarioLocalDataSourceImpl(sharedPreferences),
         ),
+        Provider<UsuarioRemoteDataSource>(
+          create: (_) => UsuarioRemoteDataSourceImpl(Supabase.instance.client),
+        ),
         Provider<UsuarioMapper>(
           create: (_) => UsuarioMapper(),
         ),
         Provider<UsuarioRepository>(
           create: (context) => UsuarioRepositoryImpl(
             context.read<UsuarioLocalDataSource>(),
+            context.read<UsuarioRemoteDataSource>(),
             context.read<UsuarioMapper>(),
           ),
         ),
-        // UseCases
         Provider<GetUsuarioUseCase>(
           create: (context) => GetUsuarioUseCase(context.read<UsuarioRepository>()),
         ),
@@ -166,18 +178,15 @@ void main() async {
         Provider<RemoveUsuarioFotoUseCase>(
           create: (context) => RemoveUsuarioFotoUseCase(context.read<UsuarioRepository>()),
         ),
-        // --- Novo UseCase para Editar Nome ---
         Provider<UpdateUsuarioNomeUseCase>(
           create: (context) => UpdateUsuarioNomeUseCase(context.read<UsuarioRepository>()),
         ),
         
-        // Provider (Presentation)
         ChangeNotifierProvider(
           create: (context) => UserProvider(
             getUsuarioUseCase: context.read<GetUsuarioUseCase>(),
             updateUsuarioFotoUseCase: context.read<UpdateUsuarioFotoUseCase>(),
             removeUsuarioFotoUseCase: context.read<RemoveUsuarioFotoUseCase>(),
-            // Injete o novo UseCase aqui:
             updateUsuarioNomeUseCase: context.read<UpdateUsuarioNomeUseCase>(),
           )..loadUsuario(),
         ),
@@ -199,7 +208,8 @@ void main() async {
         ),
         // UseCases
         Provider<GetCategoriasUseCase>(
-          create: (context) => GetCategoriasUseCase(context.read<CategoriaRepository>()),
+          create: (context) =>
+              GetCategoriasUseCase(context.read<CategoriaRepository>()),
         ),
         // Provider (Presentation)
         ChangeNotifierProvider(
