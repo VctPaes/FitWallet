@@ -1,23 +1,46 @@
+import 'package:flutter/foundation.dart';
 import '../../domain/entities/usuario.dart';
 import '../../domain/value_objects/email.dart';
 import '../../domain/repositories/usuario_repository.dart';
 import '../datasources/usuario_local_datasource.dart';
+import '../datasources/usuario_remote_datasource.dart';
 import '../dtos/usuario_dto.dart';
 import '../mappers/usuario_mapper.dart';
 
 class UsuarioRepositoryImpl implements UsuarioRepository {
-  final UsuarioLocalDataSource dataSource;
+  final UsuarioLocalDataSource localDataSource;
+  final UsuarioRemoteDataSource remoteDataSource;
   final UsuarioMapper mapper;
 
-  UsuarioRepositoryImpl(this.dataSource, this.mapper);
+  UsuarioRepositoryImpl(
+    this.localDataSource,
+    this.remoteDataSource,
+    this.mapper,
+  );
 
   @override
   Future<Usuario> getUsuario() async {
-    final dto = await dataSource.getUsuario();
-    if (dto != null) {
-      return mapper.toEntity(dto);
+    try {
+      final localDto = await localDataSource.getUsuario();
+      if (localDto != null) {
+        return mapper.toEntity(localDto);
+      }
+    } catch (e) {
+      if (kDebugMode) print('UsuarioRepository: Erro ao ler local: $e');
     }
-    // Retorna um usuário padrão se não existir (Placeholder)
+
+    try {
+      final remoteDto = await remoteDataSource.getProfile();
+      if (remoteDto != null) {
+        if (kDebugMode) print('UsuarioRepository: Perfil baixado do servidor.');
+        
+        await localDataSource.saveUsuario(remoteDto);
+        return mapper.toEntity(remoteDto);
+      }
+    } catch (e) {
+      if (kDebugMode) print('UsuarioRepository: Erro ao buscar remoto: $e');
+    }
+
     return Usuario(
       id: 'user_default',
       nome: 'Estudante',
@@ -28,13 +51,22 @@ class UsuarioRepositoryImpl implements UsuarioRepository {
 
   @override
   Future<void> salvarUsuario(Usuario usuario) async {
-    await dataSource.saveUsuario(mapper.toDto(usuario));
+    final dto = mapper.toDto(usuario);
+
+    await localDataSource.saveUsuario(dto);
+    if (kDebugMode) print('UsuarioRepository: Perfil salvo localmente.');
+
+    try {
+      await remoteDataSource.updateProfile(dto);
+      if (kDebugMode) print('UsuarioRepository: Perfil sincronizado com sucesso.');
+    } catch (e) {
+      if (kDebugMode) print('UsuarioRepository: Falha no sync remoto (será tentado depois): $e');
+    }
   }
 
   @override
   Future<void> atualizarFoto(String path) async {
     final usuarioAtual = await getUsuario();
-    // Cria um novo objeto com a foto atualizada (Imutabilidade)
     final novoUsuario = Usuario(
       id: usuarioAtual.id,
       nome: usuarioAtual.nome,
@@ -47,15 +79,12 @@ class UsuarioRepositoryImpl implements UsuarioRepository {
   @override
   Future<void> atualizarNome(String novoNome) async {
     final usuarioAtual = await getUsuario();
-    
-    // Cria uma cópia do usuário com o novo nome (Imutabilidade)
     final novoUsuario = Usuario(
       id: usuarioAtual.id,
       nome: novoNome,
       email: usuarioAtual.email,
       fotoPath: usuarioAtual.fotoPath,
     );
-    
     await salvarUsuario(novoUsuario);
   }
 
@@ -66,7 +95,7 @@ class UsuarioRepositoryImpl implements UsuarioRepository {
       id: usuarioAtual.id,
       nome: usuarioAtual.nome,
       email: usuarioAtual.email,
-      fotoPath: null, // Remove a foto
+      fotoPath: null,
     );
     await salvarUsuario(novoUsuario);
   }

@@ -33,16 +33,13 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    
-    // Garante que os dados estejam frescos ao abrir a Home
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TransactionProvider>().loadTransactions();
       context.read<GoalProvider>().loadMeta();
       context.read<UserProvider>().loadUsuario();
     });
   }
-
-  // --- Métodos de Ação (Transação) ---
 
   void _navegarParaAddGasto() async {
     final novaTransacao = await Navigator.push<Transacao>(
@@ -58,17 +55,18 @@ class _HomePageState extends State<HomePage> {
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao adicionar: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Erro ao adicionar: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
   }
 
-  // --- Métodos de Ação (Meta) ---
-
   void _alterarMetaSemanal(double valorAtual) {
-    final controller = TextEditingController(text: valorAtual.toStringAsFixed(2));
-        
+    final controller =
+        TextEditingController(text: valorAtual.toStringAsFixed(2));
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -88,7 +86,8 @@ class _HomePageState extends State<HomePage> {
           ),
           TextButton(
             onPressed: () async {
-              final novoValor = double.tryParse(controller.text.replaceAll(',', '.'));
+              final novoValor =
+                  double.tryParse(controller.text.replaceAll(',', '.'));
               if (novoValor != null && novoValor > 0) {
                 await context.read<GoalProvider>().updateMeta(novoValor);
                 if (mounted) Navigator.pop(context);
@@ -101,10 +100,8 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // --- Métodos de Ação (Usuário/Avatar) ---
-
   Future<void> _onEditAvatarPressed() async {
-    Navigator.pop(context); // Fecha o Drawer
+    Navigator.pop(context);
     await showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -126,13 +123,13 @@ class _HomePageState extends State<HomePage> {
                 _pickImage(ImageSource.gallery);
               },
             ),
-            // Verifica se tem foto para mostrar opção de remover
             Consumer<UserProvider>(
               builder: (ctx, userProvider, _) {
                 if (userProvider.usuario?.fotoPath != null) {
                   return ListTile(
                     leading: const Icon(Icons.delete, color: Colors.red),
-                    title: const Text('Remover Foto', style: TextStyle(color: Colors.red)),
+                    title: const Text('Remover Foto',
+                        style: TextStyle(color: Colors.red)),
                     onTap: () {
                       Navigator.of(context).pop();
                       _removeImage();
@@ -158,7 +155,6 @@ class _HomePageState extends State<HomePage> {
 
       final String savedPath = await _saveImageLocally(compressedFile);
 
-      // Atualiza via Provider
       if (mounted) {
         await context.read<UserProvider>().atualizarFoto(savedPath);
       }
@@ -174,8 +170,11 @@ class _HomePageState extends State<HomePage> {
   Future<File?> _compressImage(XFile file) async {
     final result = await FlutterImageCompress.compressWithFile(
       file.path,
-      minWidth: 512, minHeight: 512, quality: 80,
-      autoCorrectionAngle: true, keepExif: false,
+      minWidth: 512,
+      minHeight: 512,
+      quality: 80,
+      autoCorrectionAngle: true,
+      keepExif: false,
     );
     if (result == null) return null;
     final tempDir = await getTemporaryDirectory();
@@ -187,7 +186,6 @@ class _HomePageState extends State<HomePage> {
   Future<String> _saveImageLocally(File imageFile) async {
     final directory = await getApplicationDocumentsDirectory();
     final String newPath = p.join(directory.path, 'avatar.jpg');
-    // Se já existir, deleta antes de sobrescrever
     if (await File(newPath).exists()) await File(newPath).delete();
     await imageFile.copy(newPath);
     return newPath;
@@ -196,38 +194,34 @@ class _HomePageState extends State<HomePage> {
   Future<void> _removeImage() async {
     final userProvider = context.read<UserProvider>();
     final currentPath = userProvider.usuario?.fotoPath;
-    
+
     if (currentPath != null) {
       final file = File(currentPath);
       if (await file.exists()) await file.delete();
     }
-    
+
     await userProvider.removerFoto();
   }
-
-  // --- Build ---
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // Consumindo os Providers
     final transactionProvider = context.watch<TransactionProvider>();
     final goalProvider = context.watch<GoalProvider>();
     final userProvider = context.watch<UserProvider>();
 
-    // Dados do Usuário
     final usuario = userProvider.usuario;
     final userPhotoPath = usuario?.fotoPath;
-    // O padrão agora é 'Estudante' se o usuário ainda não tiver carregado ou for null
-    final userName = usuario?.nome ?? 'Estudante'; 
+    final userName = usuario?.nome ?? 'Estudante';
 
     final transacoes = transactionProvider.transacoes;
     final totalGasto = transacoes.fold(0.0, (sum, item) => sum + item.valor);
     final metaValor = goalProvider.meta?.valor ?? 0.0;
     final disponivel = metaValor - totalGasto;
 
-    final bool isLoading = transactionProvider.isLoading || goalProvider.isLoading;
+    final bool isLoading =
+        transactionProvider.isLoading || goalProvider.isLoading;
 
     return Scaffold(
       appBar: AppBar(
@@ -246,18 +240,13 @@ class _HomePageState extends State<HomePage> {
                     ? FileImage(File(userPhotoPath))
                     : null,
                 backgroundColor: theme.colorScheme.primary,
-                // --- LÓGICA SIMPLIFICADA ---
-                // Assume que userName nunca é vazio devido às regras de negócio
                 child: userPhotoPath == null
                     ? Text(
                         userName[0].toUpperCase(),
                         style: const TextStyle(
-                          color: Colors.white, 
-                          fontWeight: FontWeight.bold
-                        ),
+                            color: Colors.white, fontWeight: FontWeight.bold),
                       )
                     : null,
-                // --------------------------
               ),
             ),
           ),
@@ -272,7 +261,7 @@ class _HomePageState extends State<HomePage> {
       drawer: AppDrawer(
         onEditAvatarPressed: _onEditAvatarPressed,
       ),
-      body: isLoading 
+      body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : _buildBody(theme, transacoes, totalGasto, metaValor, disponivel),
       floatingActionButton: FloatingActionButton(
@@ -283,33 +272,40 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildBody(ThemeData theme, List<Transacao> transacoes, double totalGasto, double meta, double disponivel) {
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
-      children: [
-        _buildSearchBar(),
-        const SizedBox(height: 24),
-        _buildSummaryCards(theme, totalGasto, meta, disponivel),
-        const SizedBox(height: 24),
-        _buildProgressCard(theme, totalGasto, meta),
-        const SizedBox(height: 24),
-        Text(
-          'Gastos Recentes',
-          style: theme.textTheme.titleLarge?.copyWith(
-            color: theme.colorScheme.secondary,
-            fontWeight: FontWeight.bold,
+  Widget _buildBody(ThemeData theme, List<Transacao> transacoes,
+      double totalGasto, double meta, double disponivel) {
+    return RefreshIndicator(
+      color: theme.colorScheme.primary,
+      onRefresh: () async {
+        await context.read<TransactionProvider>().refreshTransactions();
+      },
+      child: ListView(
+        padding: const EdgeInsets.all(16.0),
+        children: [
+          _buildSearchBar(),
+          const SizedBox(height: 24),
+          _buildSummaryCards(theme, totalGasto, meta, disponivel),
+          const SizedBox(height: 24),
+          _buildProgressCard(theme, totalGasto, meta),
+          const SizedBox(height: 24),
+          Text(
+            'Gastos Recentes',
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: theme.colorScheme.secondary,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        TransactionListWidget(
-          onTransactionTap: (transacao) {
-            showModalBottomSheet(
-              context: context,
-              builder: (_) => TransactionActionsSheet(transacao: transacao),
-            );
-          },
-        ),
-      ],
+          const SizedBox(height: 8),
+          TransactionListWidget(
+            onTransactionTap: (transacao) {
+              showModalBottomSheet(
+                context: context,
+                builder: (_) => TransactionActionsSheet(transacao: transacao),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -317,38 +313,63 @@ class _HomePageState extends State<HomePage> {
     return TextField(
       decoration: InputDecoration(
         hintText: 'Buscar gastos...',
-        hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4)),
-        prefixIcon: Icon(Icons.search, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4)),
+        hintStyle: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4)),
+        prefixIcon: Icon(Icons.search,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4)),
         filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide.none),
+        fillColor:
+            Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12.0),
+            borderSide: BorderSide.none),
       ),
-      onChanged: (value) { /* Implementar filtro no TransactionProvider */ },
+      onChanged: (value) {/* Implementar filtro no TransactionProvider */},
     );
   }
 
-  Widget _buildSummaryCards(ThemeData theme, double totalGasto, double meta, double disponivel) {
+  Widget _buildSummaryCards(
+      ThemeData theme, double totalGasto, double meta, double disponivel) {
     return Column(
       children: [
         _buildSummaryCard(
-          theme, 'Meta Semanal', 'R\$ ${meta.toStringAsFixed(2)}',
-          Icons.flag_outlined, const Color(0xFFFFF7E0),
+          theme,
+          'Meta Semanal',
+          'R\$ ${meta.toStringAsFixed(2)}',
+          Icons.flag_outlined,
+          const Color(0xFFFFF7E0),
         ),
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _buildSummaryCard(theme, 'Gasto Total', 'R\$ ${totalGasto.toStringAsFixed(2)}', Icons.receipt_long_outlined, theme.colorScheme.secondary.withOpacity(0.1))),
+            Expanded(
+                child: _buildSummaryCard(
+                    theme,
+                    'Gasto Total',
+                    'R\$ ${totalGasto.toStringAsFixed(2)}',
+                    Icons.receipt_long_outlined,
+                    theme.colorScheme.secondary.withOpacity(0.1))),
             const SizedBox(width: 12),
-            Expanded(child: _buildSummaryCard(theme, 'Disponível', 'R\$ ${disponivel.toStringAsFixed(2)}', disponivel >= 0 ? Icons.check_circle_outline : Icons.warning_amber_outlined, theme.colorScheme.primary.withOpacity(0.1))),
+            Expanded(
+                child: _buildSummaryCard(
+                    theme,
+                    'Disponível',
+                    'R\$ ${disponivel.toStringAsFixed(2)}',
+                    disponivel >= 0
+                        ? Icons.check_circle_outline
+                        : Icons.warning_amber_outlined,
+                    theme.colorScheme.primary.withOpacity(0.1))),
           ],
         )
       ],
     );
   }
 
-  Widget _buildSummaryCard(ThemeData theme, String title, String value, IconData icon, Color bg) {
+  Widget _buildSummaryCard(
+      ThemeData theme, String title, String value, IconData icon, Color bg) {
     return Card(
-      elevation: 0, color: bg,
+      elevation: 0,
+      color: bg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -356,9 +377,15 @@ class _HomePageState extends State<HomePage> {
           children: [
             Icon(icon, size: 28, color: theme.colorScheme.secondary),
             const SizedBox(height: 8),
-            Text(value, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.secondary), overflow: TextOverflow.ellipsis),
+            Text(value,
+                style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.secondary),
+                overflow: TextOverflow.ellipsis),
             const SizedBox(height: 4),
-            Text(title, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.6))),
+            Text(title,
+                style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.6))),
           ],
         ),
       ),
@@ -382,25 +409,38 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Icon(Icons.show_chart, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
-                Text('Progresso da Meta', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.secondary)),
+                Text('Progresso da Meta',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.secondary)),
               ],
             ),
             const SizedBox(height: 8),
-            Text('Você já usou R\$ ${totalGasto.toStringAsFixed(2)} da sua meta de R\$ ${meta.toStringAsFixed(2)}.', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.7))),
+            Text(
+                'Você já usou R\$ ${totalGasto.toStringAsFixed(2)} da sua meta de R\$ ${meta.toStringAsFixed(2)}.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7))),
             const SizedBox(height: 16),
             LinearProgressIndicator(
               value: progressoClamped,
               backgroundColor: theme.colorScheme.onSurface.withOpacity(0.1),
-              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
-              minHeight: 8, borderRadius: BorderRadius.circular(4),
+              valueColor:
+                  AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+              minHeight: 8,
+              borderRadius: BorderRadius.circular(4),
             ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('${(progressoClamped * 100).toStringAsFixed(0)}% Completo', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+                Text('${(progressoClamped * 100).toStringAsFixed(0)}% Completo',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.bold)),
                 IconButton(
-                  icon: Icon(Icons.edit, size: 20, color: theme.colorScheme.onSurface.withOpacity(0.5)),
+                  icon: Icon(Icons.edit,
+                      size: 20,
+                      color: theme.colorScheme.onSurface.withOpacity(0.5)),
                   onPressed: () => _alterarMetaSemanal(meta),
                   tooltip: 'Alterar Meta',
                 )

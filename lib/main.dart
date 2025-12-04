@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 // --- Core & Services ---
 import 'core/services/prefs_service.dart';
 
-// --- Feature: Transaction (Transações) ---
+// --- Feature: Transaction ---
 import 'features/transaction/data/datasources/transaction_local_datasource.dart';
 import 'features/transaction/data/datasources/transaction_remote_datasource.dart';
 import 'features/transaction/data/mappers/transacao_mapper.dart';
@@ -21,6 +21,7 @@ import 'features/transaction/presentation/providers/transaction_provider.dart';
 
 // --- Feature: Goal (Meta) ---
 import 'features/goal/data/datasources/meta_local_datasource.dart';
+import 'features/goal/data/datasources/meta_remote_datasource.dart';
 import 'features/goal/data/mappers/meta_mapper.dart';
 import 'features/goal/data/repositories/meta_repository_impl.dart';
 import 'features/goal/domain/repositories/meta_repository.dart';
@@ -30,6 +31,7 @@ import 'features/goal/presentation/providers/goal_provider.dart';
 
 // --- Feature: User (Usuário) ---
 import 'features/user/data/datasources/usuario_local_datasource.dart';
+import 'features/user/data/datasources/usuario_remote_datasource.dart';
 import 'features/user/data/mappers/usuario_mapper.dart';
 import 'features/user/data/repositories/usuario_repository_impl.dart';
 import 'features/user/domain/repositories/usuario_repository.dart';
@@ -39,7 +41,7 @@ import 'features/user/domain/usecases/remove_usuario_foto_usecase.dart';
 import 'features/user/domain/usecases/update_usuario_nome_usecase.dart';
 import 'features/user/presentation/providers/user_provider.dart';
 
-// --- Feature: Category (Categoria) ---
+// --- Feature: Category ---
 import 'features/category/data/datasources/categoria_local_datasource.dart';
 import 'features/category/data/mappers/categoria_mapper.dart';
 import 'features/category/data/repositories/categoria_repository_impl.dart';
@@ -47,11 +49,22 @@ import 'features/category/domain/repositories/categoria_repository.dart';
 import 'features/category/domain/usecases/get_categorias_usecase.dart';
 import 'features/category/presentation/providers/category_provider.dart';
 
-// --- Pages (Telas) ---
+// --- Feature: Auth (NOVO) ---
+import 'features/auth/domain/repositories/auth_repository.dart';
+import 'features/auth/domain/usecases/sign_in_usecase.dart';
+import 'features/auth/domain/usecases/sign_up_usecase.dart';
+import 'features/auth/domain/usecases/sign_out_usecase.dart';
+import 'features/auth/domain/usecases/get_current_user_usecase.dart';
+import 'features/auth/data/datasources/auth_remote_datasource.dart';
+import 'features/auth/data/repositories/auth_repository_impl.dart';
+import 'features/auth/presentation/providers/auth_provider.dart';
+import 'features/auth/presentation/pages/auth_page.dart';
+
+// --- Pages ---
 import 'features/splash/presentation/pages/splash_page.dart';
 import 'features/onboarding/presentation/pages/onboarding_page.dart';
 import 'features/settings/presentation/pages/settings_page.dart';
-import 'features/home/presentation/pages/home_page.dart'; 
+import 'features/home/presentation/pages/home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,6 +82,31 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
+        // ==========================================
+        // FEATURE: AUTH
+        // ==========================================
+        Provider<AuthRemoteDataSource>(
+          create: (_) => AuthRemoteDataSourceImpl(Supabase.instance.client),
+        ),
+        Provider<AuthRepository>(
+          create: (context) => AuthRepositoryImpl(context.read<AuthRemoteDataSource>()),
+        ),
+        // UseCases Auth
+        Provider<SignInUseCase>(create: (ctx) => SignInUseCase(ctx.read<AuthRepository>())),
+        Provider<SignUpUseCase>(create: (ctx) => SignUpUseCase(ctx.read<AuthRepository>())),
+        Provider<SignOutUseCase>(create: (ctx) => SignOutUseCase(ctx.read<AuthRepository>())),
+        Provider<GetCurrentUserUseCase>(create: (ctx) => GetCurrentUserUseCase(ctx.read<AuthRepository>())),
+        
+        // Provider Auth (Presentation)
+        ChangeNotifierProvider(
+          create: (context) => AuthProvider(
+            signInUseCase: context.read<SignInUseCase>(),
+            signUpUseCase: context.read<SignUpUseCase>(),
+            signOutUseCase: context.read<SignOutUseCase>(),
+            getCurrentUserUseCase: context.read<GetCurrentUserUseCase>(),
+          ),
+        ),
+
         // ==========================================
         // FEATURE: TRANSACTION
         // ==========================================
@@ -88,7 +126,6 @@ void main() async {
             context.read<TransacaoMapper>(),
           ),
         ),
-        // UseCases
         Provider<GetTransactionsUseCase>(
           create: (context) => GetTransactionsUseCase(context.read<TransactionRepository>()),
         ),
@@ -101,7 +138,6 @@ void main() async {
         Provider<DeleteTransactionUseCase>(
           create: (context) => DeleteTransactionUseCase(context.read<TransactionRepository>()),
         ),
-        // Provider (Presentation)
         ChangeNotifierProvider(
           create: (context) => TransactionProvider(
             repository: context.read<TransactionRepository>(),
@@ -112,10 +148,13 @@ void main() async {
         ),
 
         // ==========================================
-        // FEATURE: GOAL (META)
+        // FEATURE: GOAL
         // ==========================================
         Provider<MetaLocalDataSource>(
           create: (_) => MetaLocalDataSourceImpl(sharedPreferences),
+        ),
+        Provider<MetaRemoteDataSource>(
+          create: (_) => MetaRemoteDataSourceImpl(Supabase.instance.client),
         ),
         Provider<MetaMapper>(
           create: (_) => MetaMapper(),
@@ -123,17 +162,16 @@ void main() async {
         Provider<MetaRepository>(
           create: (context) => MetaRepositoryImpl(
             context.read<MetaLocalDataSource>(),
+            context.read<MetaRemoteDataSource>(),
             context.read<MetaMapper>(),
           ),
         ),
-        // UseCases
         Provider<GetMetaUseCase>(
           create: (context) => GetMetaUseCase(context.read<MetaRepository>()),
         ),
         Provider<UpdateMetaUseCase>(
           create: (context) => UpdateMetaUseCase(context.read<MetaRepository>()),
         ),
-        // Provider (Presentation)
         ChangeNotifierProvider(
           create: (context) => GoalProvider(
             getMetaUseCase: context.read<GetMetaUseCase>(),
@@ -142,10 +180,13 @@ void main() async {
         ),
 
         // ==========================================
-        // FEATURE: USER (USUÁRIO)
+        // FEATURE: USER
         // ==========================================
         Provider<UsuarioLocalDataSource>(
           create: (_) => UsuarioLocalDataSourceImpl(sharedPreferences),
+        ),
+        Provider<UsuarioRemoteDataSource>(
+          create: (_) => UsuarioRemoteDataSourceImpl(Supabase.instance.client),
         ),
         Provider<UsuarioMapper>(
           create: (_) => UsuarioMapper(),
@@ -153,10 +194,10 @@ void main() async {
         Provider<UsuarioRepository>(
           create: (context) => UsuarioRepositoryImpl(
             context.read<UsuarioLocalDataSource>(),
+            context.read<UsuarioRemoteDataSource>(),
             context.read<UsuarioMapper>(),
           ),
         ),
-        // UseCases
         Provider<GetUsuarioUseCase>(
           create: (context) => GetUsuarioUseCase(context.read<UsuarioRepository>()),
         ),
@@ -166,24 +207,20 @@ void main() async {
         Provider<RemoveUsuarioFotoUseCase>(
           create: (context) => RemoveUsuarioFotoUseCase(context.read<UsuarioRepository>()),
         ),
-        // --- Novo UseCase para Editar Nome ---
         Provider<UpdateUsuarioNomeUseCase>(
           create: (context) => UpdateUsuarioNomeUseCase(context.read<UsuarioRepository>()),
         ),
-        
-        // Provider (Presentation)
         ChangeNotifierProvider(
           create: (context) => UserProvider(
             getUsuarioUseCase: context.read<GetUsuarioUseCase>(),
             updateUsuarioFotoUseCase: context.read<UpdateUsuarioFotoUseCase>(),
             removeUsuarioFotoUseCase: context.read<RemoveUsuarioFotoUseCase>(),
-            // Injete o novo UseCase aqui:
             updateUsuarioNomeUseCase: context.read<UpdateUsuarioNomeUseCase>(),
           )..loadUsuario(),
         ),
 
         // ==========================================
-        // FEATURE: CATEGORY (CATEGORIA)
+        // FEATURE: CATEGORY
         // ==========================================
         Provider<CategoriaLocalDataSource>(
           create: (_) => CategoriaLocalDataSourceImpl(sharedPreferences),
@@ -197,11 +234,9 @@ void main() async {
             context.read<CategoriaMapper>(),
           ),
         ),
-        // UseCases
         Provider<GetCategoriasUseCase>(
           create: (context) => GetCategoriasUseCase(context.read<CategoriaRepository>()),
         ),
-        // Provider (Presentation)
         ChangeNotifierProvider(
           create: (context) => CategoryProvider(
             getCategoriasUseCase: context.read<GetCategoriasUseCase>(),
@@ -246,6 +281,7 @@ class FitWalletApp extends StatelessWidget {
       routes: {
         '/': (ctx) => SplashPage(prefs: prefs),
         '/onboarding': (ctx) => OnboardingPage(prefs: prefs),
+        '/auth': (ctx) => const AuthPage(), // Rota de Login/Cadastro
         '/settings': (ctx) => SettingsPage(prefs: prefs),
         '/home': (ctx) => HomePage(prefs: prefs),
       },
