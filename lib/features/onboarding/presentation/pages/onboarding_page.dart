@@ -13,7 +13,7 @@ class OnboardingPage extends StatefulWidget {
   State<OnboardingPage> createState() => _OnboardingPageState();
 }
 
-class _OnboardingPageState extends State<OnboardingPage> {
+class _OnboardingPageState extends State<OnboardingPage> {  
   final PageController _controller = PageController();
   int _index = 0;
 
@@ -57,12 +57,12 @@ class _OnboardingPageState extends State<OnboardingPage> {
       await widget.prefs.setMarketingConsent(_allAgreed);
       await widget.prefs.setOnboardingCompleted(true);
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
+        Navigator.of(context).pushReplacementNamed('/auth');
       }
     }
   }
 
-  void _skip() {
+  void _skip() async{
     _controller.animateToPage(
       2,
       duration: const Duration(milliseconds: 400),
