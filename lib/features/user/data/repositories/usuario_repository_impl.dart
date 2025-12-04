@@ -1,10 +1,10 @@
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import '../../domain/entities/usuario.dart';
 import '../../domain/value_objects/email.dart';
 import '../../domain/repositories/usuario_repository.dart';
 import '../datasources/usuario_local_datasource.dart';
 import '../datasources/usuario_remote_datasource.dart';
-import '../dtos/usuario_dto.dart';
 import '../mappers/usuario_mapper.dart';
 
 class UsuarioRepositoryImpl implements UsuarioRepository {
@@ -65,14 +65,18 @@ class UsuarioRepositoryImpl implements UsuarioRepository {
   }
 
   @override
-  Future<void> atualizarFoto(String path) async {
+  Future<void> atualizarFoto(Uint8List imageBytes, String extension) async {
     final usuarioAtual = await getUsuario();
+    
+    final remoteUrl = await remoteDataSource.uploadAvatar(usuarioAtual.id, imageBytes, extension);
+
     final novoUsuario = Usuario(
       id: usuarioAtual.id,
       nome: usuarioAtual.nome,
       email: usuarioAtual.email,
-      fotoPath: path,
+      fotoPath: remoteUrl,
     );
+
     await salvarUsuario(novoUsuario);
   }
 

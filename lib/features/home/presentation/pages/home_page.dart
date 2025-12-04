@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../../core/services/prefs_service.dart';
@@ -150,45 +149,24 @@ class _HomePageState extends State<HomePage> {
       final XFile? pickedFile = await _picker.pickImage(source: source);
       if (pickedFile == null) return;
 
-      final File? compressedFile = await _compressImage(pickedFile);
-      if (compressedFile == null) return;
+      final bytes = await pickedFile.readAsBytes();
 
-      final String savedPath = await _saveImageLocally(compressedFile);
+      final extension = p.extension(pickedFile.path).replaceAll('.', '');
 
       if (mounted) {
-        await context.read<UserProvider>().atualizarFoto(savedPath);
+        await context.read<UserProvider>().atualizarFoto(bytes, extension);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto atualizada com sucesso!')),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro na imagem. Tente novamente.')),
+          SnackBar(content: Text('Erro ao atualizar foto: $e')),
         );
       }
     }
-  }
-
-  Future<File?> _compressImage(XFile file) async {
-    final result = await FlutterImageCompress.compressWithFile(
-      file.path,
-      minWidth: 512,
-      minHeight: 512,
-      quality: 80,
-      autoCorrectionAngle: true,
-      keepExif: false,
-    );
-    if (result == null) return null;
-    final tempDir = await getTemporaryDirectory();
-    final tempFile = File(p.join(tempDir.path, 'temp_compressed.jpg'));
-    await tempFile.writeAsBytes(result);
-    return tempFile;
-  }
-
-  Future<String> _saveImageLocally(File imageFile) async {
-    final directory = await getApplicationDocumentsDirectory();
-    final String newPath = p.join(directory.path, 'avatar.jpg');
-    if (await File(newPath).exists()) await File(newPath).delete();
-    await imageFile.copy(newPath);
-    return newPath;
   }
 
   Future<void> _removeImage() async {
