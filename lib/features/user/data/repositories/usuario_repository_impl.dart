@@ -1,10 +1,10 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import '../../domain/entities/usuario.dart';
 import '../../domain/value_objects/email.dart';
 import '../../domain/repositories/usuario_repository.dart';
 import '../datasources/usuario_local_datasource.dart';
 import '../datasources/usuario_remote_datasource.dart';
+import '../dtos/usuario_dto.dart';
 import '../mappers/usuario_mapper.dart';
 
 class UsuarioRepositoryImpl implements UsuarioRepository {
@@ -21,24 +21,24 @@ class UsuarioRepositoryImpl implements UsuarioRepository {
   @override
   Future<Usuario> getUsuario() async {
     try {
+      final remoteDto = await remoteDataSource.getProfile();
+      if (remoteDto != null) {
+        if (kDebugMode) print('UsuarioRepository: Perfil atualizado baixado do servidor.');
+        
+        await localDataSource.saveUsuario(remoteDto);
+        return mapper.toEntity(remoteDto);
+      }
+    } catch (e) {
+      if (kDebugMode) print('UsuarioRepository: Sem internet ou erro remoto. Usando cache local. Erro: $e');
+    }
+
+    try {
       final localDto = await localDataSource.getUsuario();
       if (localDto != null) {
         return mapper.toEntity(localDto);
       }
     } catch (e) {
       if (kDebugMode) print('UsuarioRepository: Erro ao ler local: $e');
-    }
-
-    try {
-      final remoteDto = await remoteDataSource.getProfile();
-      if (remoteDto != null) {
-        if (kDebugMode) print('UsuarioRepository: Perfil baixado do servidor.');
-        
-        await localDataSource.saveUsuario(remoteDto);
-        return mapper.toEntity(remoteDto);
-      }
-    } catch (e) {
-      if (kDebugMode) print('UsuarioRepository: Erro ao buscar remoto: $e');
     }
 
     return Usuario(
@@ -74,7 +74,7 @@ class UsuarioRepositoryImpl implements UsuarioRepository {
       id: usuarioAtual.id,
       nome: usuarioAtual.nome,
       email: usuarioAtual.email,
-      fotoPath: remoteUrl,
+      fotoPath: remoteUrl, 
     );
 
     await salvarUsuario(novoUsuario);
@@ -95,6 +95,7 @@ class UsuarioRepositoryImpl implements UsuarioRepository {
   @override
   Future<void> removerFoto() async {
     final usuarioAtual = await getUsuario();
+    
     final novoUsuario = Usuario(
       id: usuarioAtual.id,
       nome: usuarioAtual.nome,

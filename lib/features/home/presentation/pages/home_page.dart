@@ -255,7 +255,11 @@ class _HomePageState extends State<HomePage> {
     return RefreshIndicator(
       color: theme.colorScheme.primary,
       onRefresh: () async {
-        await context.read<TransactionProvider>().refreshTransactions();
+        await Future.wait([
+          context.read<TransactionProvider>().refreshTransactions(),
+          context.read<UserProvider>().loadUsuario(),
+          context.read<GoalProvider>().loadMeta(),
+        ]);
       },
       child: ListView(
         padding: const EdgeInsets.all(16.0),
