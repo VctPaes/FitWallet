@@ -215,14 +215,16 @@ class _HomePageState extends State<HomePage> {
               child: CircleAvatar(
                 radius: 16,
                 backgroundImage: userPhotoPath != null
-                    ? FileImage(File(userPhotoPath))
+                    ? (userPhotoPath.startsWith('http')
+                        ? NetworkImage(userPhotoPath)
+                        : FileImage(File(userPhotoPath)) as ImageProvider)
                     : null,
-                backgroundColor: theme.colorScheme.primary,
+                backgroundColor: Colors.white,
                 child: userPhotoPath == null
                     ? Text(
                         userName[0].toUpperCase(),
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
                       )
                     : null,
               ),
