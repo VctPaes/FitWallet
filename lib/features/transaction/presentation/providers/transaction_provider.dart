@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../../domain/entities/transacao.dart';
-// Note que agora dependemos diretamente do Repositório para os métodos novos,
-// ou precisaríamos criar novos UseCases (GetTransactionsUseCase, SyncTransactionsUseCase).
-// Para simplificar e manter o padrão Clean, vamos assumir que o GetTransactionsUseCase
-// foi atualizado ou que chamamos o método apropriado.
 import '../../domain/repositories/transaction_repository.dart'; 
 import '../../domain/usecases/add_transaction_usecase.dart';
 import '../../domain/usecases/delete_transaction_usecase.dart';
 import '../../domain/usecases/update_transaction_usecase.dart';
 
 class TransactionProvider extends ChangeNotifier {
-  // Vamos injetar o Repositório diretamente para acessar o loadFromCache/sync
-  // (Ou idealmente, criar UseCases específicos para isso)
   final TransactionRepository _repository;
   
   final AddTransactionUseCase _addTransactionUseCase;
@@ -36,26 +31,23 @@ class TransactionProvider extends ChangeNotifier {
         _updateTransactionUseCase = updateTransactionUseCase,
         _deleteTransactionUseCase = deleteTransactionUseCase;
 
-  // --- Nova Lógica de Carregamento ---
-
   Future<void> loadTransactions() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      // 1. CARGA RÁPIDA (Cache Local)
       _transacoes = await _repository.loadFromCache();
       _isLoading = false; 
-      notifyListeners(); // Mostra dados locais imediatamente
+      notifyListeners(); 
 
-      // 2. SINCRONIZAÇÃO (Fundo)
-      // O usuário já vê os dados, mas atualizamos se houver novidade
-      final novosItens = await _repository.syncFromServer();
-      
-      if (novosItens > 0) {
-        _transacoes = await _repository.listAll();
-        notifyListeners();
+      if (_transacoes.isEmpty) {
+        if (kDebugMode) print('Cache vazio detectado. Iniciando sync automático...');
+        final novosItens = await _repository.syncFromServer();
+        if (novosItens > 0) {
+          _transacoes = await _repository.listAll();
+          notifyListeners();
+        }
       }
       
     } catch (e) {
@@ -65,7 +57,18 @@ class TransactionProvider extends ChangeNotifier {
     }
   }
 
-  // --- CRUD Mantido ---
+  Future<void> refreshTransactions() async {
+    try {
+      // Força a sincronização independente do estado da lista
+      await _repository.syncFromServer();
+      // Recarrega a lista atualizada
+      _transacoes = await _repository.listAll();
+      notifyListeners();
+    } catch (e) {
+      // Opcional: Tratar erro silencioso ou notificar UI via SnackBar na View
+      if (kDebugMode) print('Erro no refresh manual: $e');
+    }
+  }
 
   Future<void> addTransaction(Transacao transacao) async {
     try {
