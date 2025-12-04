@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 // --- Core & Services ---
 import 'core/services/prefs_service.dart';
+import 'core/presentation/providers/theme_provider.dart';
 
 // --- Feature: Transaction ---
 import 'features/transaction/data/datasources/transaction_local_datasource.dart';
@@ -220,6 +221,15 @@ void main() async {
         ),
 
         // ==========================================
+        // FEATURE: THEME
+        // ==========================================
+        ChangeNotifierProvider(
+          create: (context) => ThemeProvider(
+            prefs: prefsService,
+          )..loadTheme(),
+        ),
+
+        // ==========================================
         // FEATURE: CATEGORY
         // ==========================================
         Provider<CategoriaLocalDataSource>(
@@ -262,7 +272,7 @@ class FitWalletApp extends StatelessWidget {
       seedColor: emerald,
       primary: emerald,
       secondary: gray,
-      background: Colors.white,
+      brightness: Brightness.light,
       surface: Colors.white,
     );
 
