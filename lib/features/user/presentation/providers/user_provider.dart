@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../domain/entities/usuario.dart';
 import '../../domain/usecases/get_usuario_usecase.dart';
@@ -35,9 +36,16 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> atualizarFoto(String path) async {
-    await updateUsuarioFotoUseCase(path);
-    await loadUsuario();
+  Future<void> atualizarFoto(Uint8List bytes, String extension) async {
+    _isLoading = true; // Feedback visual é importante no upload
+    notifyListeners();
+    try {
+      await updateUsuarioFotoUseCase(bytes, extension);
+      await loadUsuario();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> removerFoto() async {
@@ -46,9 +54,7 @@ class UserProvider extends ChangeNotifier {
   }
 
   Future<void> atualizarNome(String novoNome) async {
-    // Chama o UseCase
     await updateUsuarioNomeUseCase(novoNome);
-    // Recarrega o usuário para atualizar a UI
     await loadUsuario();
   }
 }

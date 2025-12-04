@@ -12,19 +12,27 @@ class DrawerHeaderWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // Otimização: O Consumer reconstrói apenas este pedaço quando o UserProvider muda
     return Consumer<UserProvider>(
       builder: (context, userProvider, _) {
         final usuario = userProvider.usuario;
         final userPhotoPath = usuario?.fotoPath;
         final userName = usuario?.nome ?? 'Visitante';
 
+        ImageProvider? imageProvider;
+        if (userPhotoPath != null && userPhotoPath.isNotEmpty) {
+          if (userPhotoPath.startsWith('http')) {
+            imageProvider = NetworkImage(userPhotoPath);
+          } else {
+            imageProvider = FileImage(File(userPhotoPath));
+          }
+        }
+
         return Container(
           height: 200,
           width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: theme.colorScheme.secondary, // Navy
+            color: theme.colorScheme.secondary, 
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -34,9 +42,7 @@ class DrawerHeaderWidget extends StatelessWidget {
                 onTap: onAvatarTap,
                 child: CircleAvatar(
                   radius: 36.0,
-                  backgroundImage: userPhotoPath != null
-                      ? FileImage(File(userPhotoPath))
-                      : null,
+                  backgroundImage: imageProvider,
                   backgroundColor: Colors.white,
                   child: userPhotoPath == null
                       ? Text(

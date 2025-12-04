@@ -1,14 +1,14 @@
+import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import '../dtos/usuario_dto.dart';
 
-// 1. Definição da Interface (Contrato)
 abstract class UsuarioRemoteDataSource {
   Future<UsuarioDTO?> getProfile();
   Future<void> updateProfile(UsuarioDTO user);
+  Future<String> uploadAvatar(String userId, Uint8List imageBytes, String fileExtension);
 }
 
-// 2. Implementação Concreta
 class UsuarioRemoteDataSourceImpl implements UsuarioRemoteDataSource {
   final SupabaseClient client;
   
@@ -26,7 +26,6 @@ class UsuarioRemoteDataSourceImpl implements UsuarioRemoteDataSource {
       return UsuarioDTO.fromJson(data);
     } catch (e) {
       if (kDebugMode) print('UsuarioRemote: Erro ao buscar perfil: $e');
-      // Retorna null para que o repo use o cache local
       return null;
     }
   }
@@ -37,8 +36,6 @@ class UsuarioRemoteDataSourceImpl implements UsuarioRemoteDataSource {
       final userId = client.auth.currentUser?.id;
       if (userId == null) return;
 
-      // Garante que estamos atualizando o ID correto
-      // O DTO pode ter um ID local gerado, mas no remoto usamos o UID do Auth
       final dataToUpdate = user.toJson();
       dataToUpdate['id'] = userId; 
 
@@ -48,6 +45,27 @@ class UsuarioRemoteDataSourceImpl implements UsuarioRemoteDataSource {
     } catch (e) {
       if (kDebugMode) print('UsuarioRemote: Erro ao atualizar perfil: $e');
       throw Exception('Erro de sync perfil: $e');
+    }
+  }
+
+  @override
+  Future<String> uploadAvatar(String userId, Uint8List imageBytes, String fileExtension) async {
+    try {
+      final fileName = '$userId/avatar_${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+
+      await client.storage.from('avatars').uploadBinary(
+            fileName,
+            imageBytes,
+            fileOptions: const FileOptions(upsert: true),
+          );
+
+      final imageUrl = client.storage.from('avatars').getPublicUrl(fileName);
+      
+      if (kDebugMode) print('UsuarioRemote: Upload concluído. URL: $imageUrl');
+      return imageUrl;
+    } catch (e) {
+      if (kDebugMode) print('UsuarioRemote: Erro no upload: $e');
+      throw Exception('Falha ao enviar imagem para o servidor.');
     }
   }
 }

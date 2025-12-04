@@ -21,24 +21,24 @@ class UsuarioRepositoryImpl implements UsuarioRepository {
   @override
   Future<Usuario> getUsuario() async {
     try {
+      final remoteDto = await remoteDataSource.getProfile();
+      if (remoteDto != null) {
+        if (kDebugMode) print('UsuarioRepository: Perfil atualizado baixado do servidor.');
+        
+        await localDataSource.saveUsuario(remoteDto);
+        return mapper.toEntity(remoteDto);
+      }
+    } catch (e) {
+      if (kDebugMode) print('UsuarioRepository: Sem internet ou erro remoto. Usando cache local. Erro: $e');
+    }
+
+    try {
       final localDto = await localDataSource.getUsuario();
       if (localDto != null) {
         return mapper.toEntity(localDto);
       }
     } catch (e) {
       if (kDebugMode) print('UsuarioRepository: Erro ao ler local: $e');
-    }
-
-    try {
-      final remoteDto = await remoteDataSource.getProfile();
-      if (remoteDto != null) {
-        if (kDebugMode) print('UsuarioRepository: Perfil baixado do servidor.');
-        
-        await localDataSource.saveUsuario(remoteDto);
-        return mapper.toEntity(remoteDto);
-      }
-    } catch (e) {
-      if (kDebugMode) print('UsuarioRepository: Erro ao buscar remoto: $e');
     }
 
     return Usuario(
@@ -65,14 +65,18 @@ class UsuarioRepositoryImpl implements UsuarioRepository {
   }
 
   @override
-  Future<void> atualizarFoto(String path) async {
+  Future<void> atualizarFoto(Uint8List imageBytes, String extension) async {
     final usuarioAtual = await getUsuario();
+    
+    final remoteUrl = await remoteDataSource.uploadAvatar(usuarioAtual.id, imageBytes, extension);
+
     final novoUsuario = Usuario(
       id: usuarioAtual.id,
       nome: usuarioAtual.nome,
       email: usuarioAtual.email,
-      fotoPath: path,
+      fotoPath: remoteUrl, 
     );
+
     await salvarUsuario(novoUsuario);
   }
 
@@ -91,6 +95,7 @@ class UsuarioRepositoryImpl implements UsuarioRepository {
   @override
   Future<void> removerFoto() async {
     final usuarioAtual = await getUsuario();
+    
     final novoUsuario = Usuario(
       id: usuarioAtual.id,
       nome: usuarioAtual.nome,
