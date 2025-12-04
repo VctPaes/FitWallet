@@ -7,6 +7,7 @@ abstract class TransactionRemoteDataSource {
   Future<void> addTransaction(TransacaoDTO transaction);
   Future<void> updateTransaction(TransacaoDTO transaction);
   Future<void> deleteTransaction(String id);
+  Future<void> upsertTransactions(List<TransacaoDTO> transactions);
 }
 
 class TransactionRemoteDataSourceImpl implements TransactionRemoteDataSource {
@@ -103,6 +104,32 @@ class TransactionRemoteDataSourceImpl implements TransactionRemoteDataSource {
         print('ERRO TransactionRemoteDataSource (delete): Falha ao deletar. Erro: $e');
       }
       throw Exception('Erro ao deletar transação remota: $e');
+    }
+  }
+
+  @override
+  Future<void> upsertTransactions(List<TransacaoDTO> transactions) async {
+    if (transactions.isEmpty) return;
+
+    if (kDebugMode) {
+      print('TransactionRemoteDataSource: Enviando lote de ${transactions.length} transações...');
+    }
+
+    try {
+      final List<Map<String, dynamic>> data = transactions
+          .map((t) => t.toSupabaseJson())
+          .toList();
+
+      await client.from('transacoes').upsert(data);
+
+      if (kDebugMode) {
+        print('TransactionRemoteDataSource: Lote enviado com sucesso.');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('ERRO TransactionRemoteDataSource (batch): $e');
+      }
+      throw Exception('Erro ao enviar lote de transações: $e');
     }
   }
 }

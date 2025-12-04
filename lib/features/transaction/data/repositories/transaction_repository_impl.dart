@@ -30,10 +30,8 @@ class TransactionRepositoryImpl implements TransactionRepository {
   Future<int> syncFromServer() async {
     if (kDebugMode) print('TransactionRepository: Iniciando Sincronização...');
     try {
-      // 1. Push
       await _syncPendingChanges();
 
-      // 2. Pull
       final lastSync = await localDataSource.getLastSyncTime();
       if (kDebugMode) print('TransactionRepository: Último sync em $lastSync');
 
@@ -41,48 +39,63 @@ class TransactionRepositoryImpl implements TransactionRepository {
           await remoteDataSource.getTransactions(after: lastSync);
 
       if (newRemoteDtos.isNotEmpty) {
-        if (kDebugMode)
+        if (kDebugMode) {
           print(
               'TransactionRepository: Processando ${newRemoteDtos.length} novos itens...');
+        }
         await _mergeRemoteData(newRemoteDtos);
 
-        // Atualiza timestamp
-        final now = DateTime.now().toIso8601String();
-        await localDataSource.saveLastSyncTime(now);
+        final maxUpdatedAt = newRemoteDtos
+            .map((e) => e.updatedAt)
+            .where((e) => e != null)
+            .fold<DateTime>(DateTime.fromMillisecondsSinceEpoch(0),
+                (prev, curr) {
+          final dt = DateTime.parse(curr!);
+          return dt.isAfter(prev) ? dt : prev;
+        });
+
+        if (maxUpdatedAt.year > 1970) {
+          await localDataSource
+              .saveLastSyncTime(maxUpdatedAt.toIso8601String());
+        } else {
+          await localDataSource
+              .saveLastSyncTime(DateTime.now().toIso8601String());
+        }
       }
 
       return newRemoteDtos.length;
     } catch (e) {
-      if (kDebugMode)
+      if (kDebugMode) {
         print('TransactionRepository: Erro no Sync (Modo Offline mantido): $e');
-      return 0; // Falha silenciosa para o usuário, mas logada
+      }
+      return 0;
     }
   }
 
   Future<void> _syncPendingChanges() async {
     final localDtos = await localDataSource.getTransactions();
-    // Filtra apenas os que estão marcados como não sincronizados
+
     final pending = localDtos.where((t) => !t.sincronizado).toList();
 
-    for (final dto in pending) {
-      try {
-        // Tenta enviar novamente
-        // Nota: Em um cenário real complexo, você verificaria se é insert/update/delete
-        // Aqui assumimos insert/update baseados na lógica simplificada
-        await remoteDataSource.addTransaction(dto); // Ou upsert se suportado
+    if (pending.isEmpty) return;
 
-        // Se sucesso, marca como sincronizado localmente
-        final index = localDtos.indexWhere((t) => t.id == dto.id);
-        if (index != -1) {
-          localDtos[index] = dto.copyWith(sincronizado: true);
+    try {
+      if (kDebugMode)
+        print(
+            'TransactionRepository: Enviando ${pending.length} itens pendentes...');
+
+      await remoteDataSource.upsertTransactions(pending);
+
+      for (var i = 0; i < localDtos.length; i++) {
+        if (!localDtos[i].sincronizado) {
+          localDtos[i] = localDtos[i].copyWith(sincronizado: true);
         }
-      } catch (e) {
-        print('Falha ao sincronizar item pendente ${dto.titulo}: $e');
-        // Continua para o próximo item
       }
+
+      await localDataSource.saveTransactions(localDtos);
+    } catch (e) {
+      if (kDebugMode) print('TransactionRepository: Falha no push em lote: $e');
     }
-    // Salva o estado atualizado (itens marcados como true)
-    await localDataSource.saveTransactions(localDtos);
   }
 
   Future<void> _mergeRemoteData(List<TransacaoDTO> newRemoteData) async {
@@ -91,14 +104,11 @@ class TransactionRepositoryImpl implements TransactionRepository {
     for (final remoteItem in newRemoteData) {
       final index = localDtos.indexWhere((l) => l.id == remoteItem.id);
 
-      // Se o item remoto tem deletedAt, removemos do local definitivamente (ou marcamos)
-      // Aqui, para limpar o armazenamento, vamos remover da lista local
       if (remoteItem.deletedAt != null) {
         if (index != -1) {
           localDtos.removeAt(index);
         }
       } else {
-        // Se não está deletado, atualiza ou insere
         if (index != -1) {
           localDtos[index] = remoteItem;
         } else {
@@ -108,8 +118,6 @@ class TransactionRepositoryImpl implements TransactionRepository {
     }
     await localDataSource.saveTransactions(localDtos);
   }
-
-  // --- CRUD com Fila ---
 
   @override
   Future<void> addTransaction(Transacao transacao) async {

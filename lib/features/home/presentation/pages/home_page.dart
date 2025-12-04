@@ -34,15 +34,12 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
-    // Garante que os dados estejam frescos ao abrir a Home
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TransactionProvider>().loadTransactions();
       context.read<GoalProvider>().loadMeta();
       context.read<UserProvider>().loadUsuario();
     });
   }
-
-  // --- Métodos de Ação (Transação) ---
 
   void _navegarParaAddGasto() async {
     final novaTransacao = await Navigator.push<Transacao>(
@@ -65,8 +62,6 @@ class _HomePageState extends State<HomePage> {
       }
     }
   }
-
-  // --- Métodos de Ação (Meta) ---
 
   void _alterarMetaSemanal(double valorAtual) {
     final controller =
@@ -105,10 +100,8 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // --- Métodos de Ação (Usuário/Avatar) ---
-
   Future<void> _onEditAvatarPressed() async {
-    Navigator.pop(context); // Fecha o Drawer
+    Navigator.pop(context);
     await showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -130,7 +123,6 @@ class _HomePageState extends State<HomePage> {
                 _pickImage(ImageSource.gallery);
               },
             ),
-            // Verifica se tem foto para mostrar opção de remover
             Consumer<UserProvider>(
               builder: (ctx, userProvider, _) {
                 if (userProvider.usuario?.fotoPath != null) {
@@ -163,7 +155,6 @@ class _HomePageState extends State<HomePage> {
 
       final String savedPath = await _saveImageLocally(compressedFile);
 
-      // Atualiza via Provider
       if (mounted) {
         await context.read<UserProvider>().atualizarFoto(savedPath);
       }
@@ -195,7 +186,6 @@ class _HomePageState extends State<HomePage> {
   Future<String> _saveImageLocally(File imageFile) async {
     final directory = await getApplicationDocumentsDirectory();
     final String newPath = p.join(directory.path, 'avatar.jpg');
-    // Se já existir, deleta antes de sobrescrever
     if (await File(newPath).exists()) await File(newPath).delete();
     await imageFile.copy(newPath);
     return newPath;
@@ -213,21 +203,16 @@ class _HomePageState extends State<HomePage> {
     await userProvider.removerFoto();
   }
 
-  // --- Build ---
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // Consumindo os Providers
     final transactionProvider = context.watch<TransactionProvider>();
     final goalProvider = context.watch<GoalProvider>();
     final userProvider = context.watch<UserProvider>();
 
-    // Dados do Usuário
     final usuario = userProvider.usuario;
     final userPhotoPath = usuario?.fotoPath;
-    // O padrão agora é 'Estudante' se o usuário ainda não tiver carregado ou for null
     final userName = usuario?.nome ?? 'Estudante';
 
     final transacoes = transactionProvider.transacoes;
@@ -255,8 +240,6 @@ class _HomePageState extends State<HomePage> {
                     ? FileImage(File(userPhotoPath))
                     : null,
                 backgroundColor: theme.colorScheme.primary,
-                // --- LÓGICA SIMPLIFICADA ---
-                // Assume que userName nunca é vazio devido às regras de negócio
                 child: userPhotoPath == null
                     ? Text(
                         userName[0].toUpperCase(),
@@ -264,7 +247,6 @@ class _HomePageState extends State<HomePage> {
                             color: Colors.white, fontWeight: FontWeight.bold),
                       )
                     : null,
-                // --------------------------
               ),
             ),
           ),

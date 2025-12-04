@@ -31,7 +31,7 @@ class TransactionProvider extends ChangeNotifier {
         _updateTransactionUseCase = updateTransactionUseCase,
         _deleteTransactionUseCase = deleteTransactionUseCase;
 
-  Future<void> loadTransactions() async {
+  Future<void>  loadTransactions() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -41,13 +41,12 @@ class TransactionProvider extends ChangeNotifier {
       _isLoading = false; 
       notifyListeners(); 
 
-      if (_transacoes.isEmpty) {
-        if (kDebugMode) print('Cache vazio detectado. Iniciando sync automático...');
-        final novosItens = await _repository.syncFromServer();
-        if (novosItens > 0) {
-          _transacoes = await _repository.listAll();
-          notifyListeners();
-        }
+      if (kDebugMode) print('Iniciando sync em background...');
+      final novosItens = await _repository.syncFromServer();
+      
+      if (novosItens > 0) {
+        _transacoes = await _repository.listAll();
+        notifyListeners();
       }
       
     } catch (e) {
@@ -59,13 +58,10 @@ class TransactionProvider extends ChangeNotifier {
 
   Future<void> refreshTransactions() async {
     try {
-      // Força a sincronização independente do estado da lista
       await _repository.syncFromServer();
-      // Recarrega a lista atualizada
       _transacoes = await _repository.listAll();
       notifyListeners();
     } catch (e) {
-      // Opcional: Tratar erro silencioso ou notificar UI via SnackBar na View
       if (kDebugMode) print('Erro no refresh manual: $e');
     }
   }

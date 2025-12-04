@@ -6,6 +6,7 @@ class TransacaoDTO {
   final String categoria_id;
   final bool sincronizado;
   final String? deletedAt;
+  final String? updatedAt;
 
   TransacaoDTO({
     required this.id,
@@ -15,6 +16,7 @@ class TransacaoDTO {
     required this.categoria_id,
     this.sincronizado = true,
     this.deletedAt,
+    this.updatedAt,
   });
 
   factory TransacaoDTO.fromJson(Map<String, dynamic> json) {
@@ -26,6 +28,7 @@ class TransacaoDTO {
       categoria_id: json['categoria_id'] as String,
       sincronizado: json['sincronizado'] ?? true,
       deletedAt: json['deleted_at'],
+      updatedAt: json['updated_at'],
     );
   }
 
@@ -38,6 +41,7 @@ class TransacaoDTO {
       'categoria_id': categoria_id,
       'sincronizado': sincronizado,
       'deleted_at': deletedAt,
+      'updated_at': updatedAt,
     };
   }
 
