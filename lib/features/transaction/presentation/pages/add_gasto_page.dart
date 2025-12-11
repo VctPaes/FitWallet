@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../domain/entities/transacao.dart';
 
-// Helper visual para as categorias no Dropdown
 class CategoriaView {
-  final String id; // ID que será salvo na Entidade
+  final String id;
   final String nome;
   final IconData icone;
   
@@ -38,8 +37,6 @@ class _AddGastoPageState extends State<AddGastoPage> {
   final _formKey = GlobalKey<FormState>();
   final _tituloController = TextEditingController();
   final _valorController = TextEditingController();
-
-  // Lista de categorias com IDs fixos para mapeamento
   final List<CategoriaView> _categorias = [
     CategoriaView(id: 'cat_alimentacao', nome: 'Alimentação', icone: Icons.fastfood),
     CategoriaView(id: 'cat_transporte', nome: 'Transporte', icone: Icons.directions_bus),
@@ -61,7 +58,6 @@ class _AddGastoPageState extends State<AddGastoPage> {
       _tituloController.text = gasto.titulo;
       _valorController.text = gasto.valor.toStringAsFixed(2).replaceAll('.', ',');
       
-      // Encontra a categoria correta baseada no ID salvo
       _categoriaSelecionada = _categorias.firstWhere(
         (cat) => cat.id == gasto.categoriaId,
         orElse: () => _categorias.last,
@@ -78,12 +74,9 @@ class _AddGastoPageState extends State<AddGastoPage> {
     super.dispose();
   }
 
-  // --- Métodos de Ação ---
-
   void _salvarGasto() {
     if (_formKey.currentState!.validate()) {
       
-      // Se for edição, mantém o ID. Se for novo, gera um ID baseado no tempo.
       final String id = isEditing 
           ? widget.transacaoParaEditar!.id 
           : DateTime.now().millisecondsSinceEpoch.toString();
@@ -93,29 +86,36 @@ class _AddGastoPageState extends State<AddGastoPage> {
         titulo: _tituloController.text,
         valor: double.parse(_valorController.text.replaceAll(',', '.')),
         data: widget.transacaoParaEditar?.data ?? DateTime.now(),
-        categoriaId: _categoriaSelecionada!.id, // Salva o ID da categoria
+        categoriaId: _categoriaSelecionada!.id,
       );
       
       Navigator.of(context).pop(gastoProcessado);
     }
   }
 
-  // --- Widgets de Construção ---
+  InputDecoration _buildInputDecoration(BuildContext context, String label, {String? hint, String? prefix}) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-  InputDecoration _buildInputDecoration(String label, {String? hint, String? prefix}) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
       prefixText: prefix,
       filled: true,
-      fillColor: Colors.grey.shade100,
+      fillColor: isDark ? theme.colorScheme.surfaceVariant.withOpacity(0.3) : Colors.grey.shade100,
+      labelStyle: TextStyle(
+        color: isDark ? theme.colorScheme.onSurface.withOpacity(0.7) : Colors.grey.shade700,
+      ),
+      hintStyle: TextStyle(
+        color: isDark ? theme.colorScheme.onSurface.withOpacity(0.4) : Colors.grey.shade400,
+      ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
+        borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
       ),
     );
   }
@@ -127,7 +127,7 @@ class _AddGastoPageState extends State<AddGastoPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? 'Editar Gasto' : 'Adicionar Gasto'),
-        backgroundColor: theme.colorScheme.secondary, // Navy
+        backgroundColor: theme.colorScheme.primary, 
         foregroundColor: Colors.white,
       ),
       body: Padding(
@@ -138,7 +138,8 @@ class _AddGastoPageState extends State<AddGastoPage> {
             children: [
               TextFormField(
                 controller: _tituloController,
-                decoration: _buildInputDecoration('Descrição', hint: 'Ex: Almoço'),
+                decoration: _buildInputDecoration(context, 'Descrição', hint: 'Ex: Almoço'),
+                textCapitalization: TextCapitalization.sentences,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Por favor, insira uma descrição.';
@@ -149,7 +150,7 @@ class _AddGastoPageState extends State<AddGastoPage> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _valorController,
-                decoration: _buildInputDecoration('Valor (R\$)', hint: '25,50', prefix: 'R\$ '),
+                decoration: _buildInputDecoration(context, 'Valor (R\$)', hint: '25,50', prefix: 'R\$ '),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d+[,.]?\d{0,2}')),
@@ -167,15 +168,21 @@ class _AddGastoPageState extends State<AddGastoPage> {
               const SizedBox(height: 16),
               DropdownButtonFormField<CategoriaView>(
                 value: _categoriaSelecionada,
-                decoration: _buildInputDecoration('Categoria'),
+                decoration: _buildInputDecoration(context, 'Categoria'),
+                dropdownColor: theme.cardColor,
                 items: _categorias.map((CategoriaView categoria) {
                   return DropdownMenuItem<CategoriaView>(
                     value: categoria,
                     child: Row(
                       children: [
-                        Icon(categoria.icone, color: theme.colorScheme.primary), // Emerald
+                        Icon(categoria.icone, color: theme.colorScheme.primary),
                         const SizedBox(width: 10),
-                        Text(categoria.nome),
+                        Text(
+                          categoria.nome,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -199,7 +206,7 @@ class _AddGastoPageState extends State<AddGastoPage> {
                 child: ElevatedButton(
                   onPressed: _salvarGasto,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.primary, // Emerald
+                    backgroundColor: theme.colorScheme.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     textStyle: const TextStyle(
