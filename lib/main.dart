@@ -268,7 +268,7 @@ class FitWalletApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.fromSeed(
+    final lightColorScheme = ColorScheme.fromSeed(
       seedColor: emerald,
       primary: emerald,
       secondary: gray,
@@ -276,24 +276,50 @@ class FitWalletApp extends StatelessWidget {
       surface: Colors.white,
     );
 
-    return MaterialApp(
-      title: 'FitWallet',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: colorScheme,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: navy,
-          foregroundColor: Colors.white,
-        ),
-      ),
-      debugShowCheckedModeBanner: false,
-      initialRoute: '/',
-      routes: {
-        '/': (ctx) => SplashPage(prefs: prefs),
-        '/onboarding': (ctx) => OnboardingPage(prefs: prefs),
-        '/auth': (ctx) => const AuthPage(), // Rota de Login/Cadastro
-        '/settings': (ctx) => SettingsPage(prefs: prefs),
-        '/home': (ctx) => HomePage(prefs: prefs),
+    final darkColorScheme = ColorScheme.fromSeed(
+      seedColor: emerald,
+      primary: emerald,
+      secondary: gray,
+      brightness: Brightness.dark,
+      surface: const Color(0xFF121212), 
+    );
+
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return MaterialApp(
+          title: 'FitWallet',
+          
+          themeMode: themeProvider.themeMode,
+          
+          theme: ThemeData(
+            useMaterial3: true,
+            colorScheme: lightColorScheme,
+            appBarTheme: const AppBarTheme(
+              backgroundColor: navy,
+              foregroundColor: Colors.white,
+            ),
+          ),
+          
+          darkTheme: ThemeData(
+            useMaterial3: true,
+            colorScheme: darkColorScheme,
+            appBarTheme: AppBarTheme(
+              backgroundColor: const Color(0xFF0F172A),
+              foregroundColor: emerald,
+            ),
+            scaffoldBackgroundColor: const Color(0xFF121212),
+          ),
+
+          debugShowCheckedModeBanner: false,
+          initialRoute: '/',
+          routes: {
+            '/': (ctx) => SplashPage(prefs: prefs),
+            '/onboarding': (ctx) => OnboardingPage(prefs: prefs),
+            '/auth': (ctx) => const AuthPage(),
+            '/settings': (ctx) => SettingsPage(prefs: prefs),
+            '/home': (ctx) => HomePage(prefs: prefs),
+          },
+        );
       },
     );
   }
