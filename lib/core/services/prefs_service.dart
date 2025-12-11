@@ -8,6 +8,13 @@ class PrefsService {
     return PrefsService();
   }
 
+  // ---------- Tema ----------
+  // Salva: 'system', 'light', 'dark'
+  String getThemeMode() => _prefs.getString('theme_mode') ?? 'system';
+  
+  Future<void> setThemeMode(String mode) async =>
+      _prefs.setString('theme_mode', mode);
+
   // ---------- Onboarding ----------
   bool getOnboardingCompleted() => _prefs.getBool('onboarding_completed') ?? false;
   Future<void> setOnboardingCompleted(bool value) async =>

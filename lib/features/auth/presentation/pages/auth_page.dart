@@ -12,13 +12,11 @@ class AuthPage extends StatefulWidget {
 class _AuthPageState extends State<AuthPage> {
   final _formKey = GlobalKey<FormState>();
   
-  // Controladores de texto
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  // Estado local da UI
-  bool _isLogin = true; // true = Login, false = Cadastro
+  bool _isLogin = true; 
   bool _obscurePassword = true;
 
   @override
@@ -32,7 +30,6 @@ class _AuthPageState extends State<AuthPage> {
   void _toggleMode() {
     setState(() {
       _isLogin = !_isLogin;
-      // Limpa erros ao trocar de modo
       context.read<AuthProvider>().clearError();
     });
   }
@@ -40,7 +37,6 @@ class _AuthPageState extends State<AuthPage> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Fecha o teclado
     FocusScope.of(context).unfocus();
 
     final authProvider = context.read<AuthProvider>();
@@ -56,11 +52,9 @@ class _AuthPageState extends State<AuthPage> {
       }
 
       if (mounted) {
-        // Sucesso: Navega para a Home e remove o histórico de telas anteriores
         Navigator.of(context).pushReplacementNamed('/home');
       }
     } catch (e) {
-      // Erro: Mostra um SnackBar (o erro também está no estado do provider)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -78,7 +72,6 @@ class _AuthPageState extends State<AuthPage> {
     final authProvider = context.watch<AuthProvider>();
 
     return Scaffold(
-      backgroundColor: Colors.white,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -88,9 +81,8 @@ class _AuthPageState extends State<AuthPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // --- Logo ---
                 Icon(
-                  Icons.lock_person_outlined, // Ícone simples para Auth
+                  Icons.lock_person_outlined,
                   size: 80,
                   color: theme.colorScheme.primary,
                 ),
@@ -101,7 +93,7 @@ class _AuthPageState extends State<AuthPage> {
                   textAlign: TextAlign.center,
                   style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.secondary,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -110,11 +102,10 @@ class _AuthPageState extends State<AuthPage> {
                     ? 'Faça login para acessar suas finanças.' 
                     : 'Registre-se para começar a economizar.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey[600]),
+                  style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
                 ),
                 const SizedBox(height: 32),
 
-                // --- Campo Nome (Só no Cadastro) ---
                 if (!_isLogin) ...[
                   TextFormField(
                     controller: _nameController,
@@ -134,7 +125,6 @@ class _AuthPageState extends State<AuthPage> {
                   const SizedBox(height: 16),
                 ],
 
-                // --- Campo Email ---
                 TextFormField(
                   controller: _emailController,
                   decoration: InputDecoration(
@@ -152,7 +142,6 @@ class _AuthPageState extends State<AuthPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // --- Campo Senha ---
                 TextFormField(
                   controller: _passwordController,
                   decoration: InputDecoration(
@@ -174,22 +163,24 @@ class _AuthPageState extends State<AuthPage> {
                 ),
                 const SizedBox(height: 24),
 
-                // --- Botão Principal ---
                 SizedBox(
                   height: 50,
                   child: ElevatedButton(
                     onPressed: authProvider.isLoading ? null : _submit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: Colors.white,
+                      foregroundColor: theme.colorScheme.onPrimary,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       elevation: 2,
                     ),
                     child: authProvider.isLoading
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 24, 
                             height: 24, 
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              color: theme.colorScheme.onPrimary, 
+                              strokeWidth: 2
+                            ),
                           )
                         : Text(
                             _isLogin ? 'ENTRAR' : 'CADASTRAR',
@@ -199,13 +190,12 @@ class _AuthPageState extends State<AuthPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // --- Botão de Alternar Modo ---
                 TextButton(
                   onPressed: authProvider.isLoading ? null : _toggleMode,
                   child: RichText(
                     text: TextSpan(
                       text: _isLogin ? 'Não tem uma conta? ' : 'Já tem uma conta? ',
-                      style: TextStyle(color: Colors.grey[700]),
+                      style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7)),
                       children: [
                         TextSpan(
                           text: _isLogin ? 'Cadastre-se' : 'Faça Login',
