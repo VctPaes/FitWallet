@@ -149,7 +149,6 @@ class _HomePageState extends State<HomePage> {
       if (pickedFile == null) return;
 
       final bytes = await pickedFile.readAsBytes();
-
       final extension = p.extension(pickedFile.path).replaceAll('.', '');
 
       if (mounted) {
@@ -204,7 +203,9 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('FitWallet'),
         centerTitle: true,
-        backgroundColor: theme.colorScheme.secondary,
+        // Mantém a cor primária no AppBar para identidade visual consistente
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: theme.colorScheme.onPrimary,
         elevation: 0,
         actions: [
           Padding(
@@ -218,12 +219,13 @@ class _HomePageState extends State<HomePage> {
                         ? NetworkImage(userPhotoPath)
                         : FileImage(File(userPhotoPath)) as ImageProvider)
                     : null,
-                backgroundColor: Colors.white,
+                backgroundColor: theme.colorScheme.surface,
                 child: userPhotoPath == null
                     ? Text(
-                        userName[0].toUpperCase(),
+                        userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
                         style: TextStyle(
-                            color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold),
                       )
                     : null,
               ),
@@ -246,13 +248,26 @@ class _HomePageState extends State<HomePage> {
       floatingActionButton: FloatingActionButton(
         onPressed: _navegarParaAddGasto,
         backgroundColor: theme.colorScheme.primary,
-        child: const Icon(Icons.add, color: Colors.white),
+        foregroundColor: theme.colorScheme.onPrimary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: const Icon(Icons.add),
       ),
     );
   }
 
   Widget _buildBody(ThemeData theme, List<Transacao> transacoes,
       double totalGasto, double meta, double disponivel) {
+    
+    // Detecta se é tema escuro para ajustar cores dos cards
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Cores adaptativas para os cards
+    final disponivelBg = isDark ? Colors.green.withOpacity(0.15) : const Color(0xFFE8F5E9);
+    final disponivelText = isDark ? Colors.greenAccent.shade100 : Colors.green.shade800;
+    
+    final metaBg = isDark ? Colors.blue.withOpacity(0.15) : const Color(0xFFE3F2FD);
+    final metaText = isDark ? Colors.lightBlueAccent.shade100 : Colors.blue.shade800;
+
     return RefreshIndicator(
       color: theme.colorScheme.primary,
       onRefresh: () async {
@@ -262,175 +277,240 @@ class _HomePageState extends State<HomePage> {
           context.read<GoalProvider>().loadMeta(),
         ]);
       },
-      child: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          _buildSearchBar(),
-          const SizedBox(height: 24),
-          _buildSummaryCards(theme, totalGasto, meta, disponivel),
-          const SizedBox(height: 24),
-          _buildProgressCard(theme, totalGasto, meta),
-          const SizedBox(height: 24),
-          Text(
-            'Gastos Recentes',
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: theme.colorScheme.secondary,
-              fontWeight: FontWeight.bold,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          children: [
+            // Cabeçalho Circular (Donut)
+            _buildCircularHeader(theme, totalGasto, meta),
+            
+            const SizedBox(height: 20),
+            
+            // Cards de Resumo (Meta e Disponível)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildInfoCard(
+                      theme, 
+                      'Disponível', 
+                      disponivel, 
+                      disponivelBg,
+                      disponivelText,
+                      Icons.account_balance_wallet_outlined
+                    )
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _alterarMetaSemanal(meta),
+                      child: _buildInfoCard(
+                        theme, 
+                        'Meta Atual', 
+                        meta, 
+                        metaBg,
+                        metaText,
+                        Icons.flag_outlined
+                      ),
+                    )
+                  ),
+                ],
+              ),
             ),
+
+            const SizedBox(height: 30),
+
+            // Título da Lista
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Últimas Despesas',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      color: theme.colorScheme.onBackground,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18
+                    ),
+                  ),
+                  Text(
+                    '${transacoes.length} total',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onBackground.withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 10),
+
+            // Lista de Transações
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: TransactionListWidget(
+                onTransactionTap: (transacao) {
+                  showModalBottomSheet(
+                    context: context,
+                    builder: (_) => TransactionActionsSheet(transacao: transacao),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 80), // Espaço para o FAB não cobrir o fim da lista
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- Widget: Header Circular Adaptativo ---
+  Widget _buildCircularHeader(ThemeData theme, double totalGasto, double meta) {
+    final double progresso = (meta > 0) ? totalGasto / meta : 0.0;
+    final double progressoClamped = progresso.clamp(0.0, 1.0);
+    
+    // Cor de alerta se passar de 90%
+    final Color progressColor = progressoClamped > 0.9 
+      ? theme.colorScheme.error 
+      : theme.colorScheme.primary;
+
+    // Cor do texto secundário (cinza ou cinza claro dependendo do tema)
+    final secondaryTextColor = theme.colorScheme.onSurface.withOpacity(0.6);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      decoration: BoxDecoration(
+        // Usa a cor do "card" do tema, que adapta ao dark/light
+        color: theme.cardColor, 
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05), // Sombra sutil
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          )
+        ]
+      ),
+      child: Column(
+        children: [
+          Text(
+            "ESTA SEMANA", 
+            style: TextStyle(
+              fontWeight: FontWeight.bold, 
+              letterSpacing: 1.2,
+              color: secondaryTextColor,
+            )
           ),
-          const SizedBox(height: 8),
-          TransactionListWidget(
-            onTransactionTap: (transacao) {
-              showModalBottomSheet(
-                context: context,
-                builder: (_) => TransactionActionsSheet(transacao: transacao),
-              );
-            },
+          const SizedBox(height: 20),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              // Fundo do círculo (trilho)
+              SizedBox(
+                width: 200,
+                height: 200,
+                child: CircularProgressIndicator(
+                  value: 1.0,
+                  strokeWidth: 12,
+                  // Cor de fundo do gráfico adaptativa
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    theme.brightness == Brightness.dark 
+                      ? Colors.white10 
+                      : Colors.grey.shade100
+                  ),
+                ),
+              ),
+              // Progresso do círculo
+              SizedBox(
+                width: 200,
+                height: 200,
+                child: CircularProgressIndicator(
+                  value: progressoClamped,
+                  strokeWidth: 12,
+                  strokeCap: StrokeCap.round,
+                  valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                ),
+              ),
+              // Texto Central
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Total Gasto',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: secondaryTextColor,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'R\$ ${totalGasto.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      color: theme.colorScheme.onSurface, // Texto principal adapta ao fundo
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: progressColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${(progresso * 100).toStringAsFixed(0)}% da meta',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: progressColor,
+                      ),
+                    ),
+                  )
+                ],
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSearchBar() {
-    return TextField(
-      decoration: InputDecoration(
-        hintText: 'Buscar gastos...',
-        hintStyle: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4)),
-        prefixIcon: Icon(Icons.search,
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4)),
-        filled: true,
-        fillColor:
-            Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12.0),
-            borderSide: BorderSide.none),
+  // --- Widget: Cards Coloridos Adaptativos ---
+  Widget _buildInfoCard(ThemeData theme, String title, double value, Color bgColor, Color textColor, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
       ),
-      onChanged: (value) {/* Implementar filtro no TransactionProvider */},
-    );
-  }
-
-  Widget _buildSummaryCards(
-      ThemeData theme, double totalGasto, double meta, double disponivel) {
-    return Column(
-      children: [
-        _buildSummaryCard(
-          theme,
-          'Meta Semanal',
-          'R\$ ${meta.toStringAsFixed(2)}',
-          Icons.flag_outlined,
-          const Color(0xFFFFF7E0),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-                child: _buildSummaryCard(
-                    theme,
-                    'Gasto Total',
-                    'R\$ ${totalGasto.toStringAsFixed(2)}',
-                    Icons.receipt_long_outlined,
-                    theme.colorScheme.secondary.withOpacity(0.1))),
-            const SizedBox(width: 12),
-            Expanded(
-                child: _buildSummaryCard(
-                    theme,
-                    'Disponível',
-                    'R\$ ${disponivel.toStringAsFixed(2)}',
-                    disponivel >= 0
-                        ? Icons.check_circle_outline
-                        : Icons.warning_amber_outlined,
-                    theme.colorScheme.primary.withOpacity(0.1))),
-          ],
-        )
-      ],
-    );
-  }
-
-  Widget _buildSummaryCard(
-      ThemeData theme, String title, String value, IconData icon, Color bg) {
-    return Card(
-      elevation: 0,
-      color: bg,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Icon(icon, size: 28, color: theme.colorScheme.secondary),
-            const SizedBox(height: 8),
-            Text(value,
-                style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.secondary),
-                overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 4),
-            Text(title,
-                style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.6))),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProgressCard(ThemeData theme, double totalGasto, double meta) {
-    final double progresso = (meta > 0) ? totalGasto / meta : 0.0;
-    final double progressoClamped = progresso.clamp(0.0, 1.0);
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: theme.colorScheme.surface,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.show_chart, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                Text('Progresso da Meta',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.secondary)),
-              ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: textColor, size: 24),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: textColor.withOpacity(0.8),
+              fontWeight: FontWeight.w600
             ),
-            const SizedBox(height: 8),
-            Text(
-                'Você já usou R\$ ${totalGasto.toStringAsFixed(2)} da sua meta de R\$ ${meta.toStringAsFixed(2)}.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.7))),
-            const SizedBox(height: 16),
-            LinearProgressIndicator(
-              value: progressoClamped,
-              backgroundColor: theme.colorScheme.onSurface.withOpacity(0.1),
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
-              minHeight: 8,
-              borderRadius: BorderRadius.circular(4),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'R\$ ${value.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontSize: 16,
+              color: textColor,
+              fontWeight: FontWeight.bold
             ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('${(progressoClamped * 100).toStringAsFixed(0)}% Completo',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.bold)),
-                IconButton(
-                  icon: Icon(Icons.edit,
-                      size: 20,
-                      color: theme.colorScheme.onSurface.withOpacity(0.5)),
-                  onPressed: () => _alterarMetaSemanal(meta),
-                  tooltip: 'Alterar Meta',
-                )
-              ],
-            ),
-          ],
-        ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
