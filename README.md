@@ -1,75 +1,72 @@
-# FitWallet 💰
+# FitWallet
 
 ![Built with Flutter](https://img.shields.io/badge/Built%20with-Flutter-02569B?logo=flutter)
+![State Management](https://img.shields.io/badge/State-Provider-795548)
+![Backend](https://img.shields.io/badge/Backend-Supabase-3ECF8E?logo=supabase)
 
-FitWallet é um aplicativo móvel de controle financeiro desenvolvido em Flutter. O projeto foi criado com foco em estudantes e usuários que precisam de uma forma rápida e simples de controlar seus gastos diários e acompanhar uma meta de gastos semanal.
+**FitWallet** é uma aplicação de controle financeiro desenvolvida em Flutter, focada na experiência do usuário para registro rápido de despesas e acompanhamento de metas semanais. Este projeto demonstra a implementação de uma arquitetura robusta e escalável, integração com serviços em nuvem e manipulação avançada de mídia.
 
-## 📱 Telas Principais
+## Funcionalidades
 
-(Em breve: Adicionar GIFs e screenshots das telas principais do app)
+O aplicativo foi desenhado para resolver o problema da complexidade em apps financeiros, oferecendo:
 
-* Tela de Onboarding (com consentimento de privacidade)
-* Tela Inicial (Home) com a Meta Semanal e a Lista de Gastos
-* Fluxo de Adicionar/Editar Gasto (Modal)
-* Drawer de Navegação com o Avatar do Usuário
+* **Gestão de Transações:** CRUD completo (Adicionar, Ler, Editar, Remover) de despesas diárias com categorização.
+* **Meta Semanal Inteligente:** Visualização de progresso de gastos com feedback visual (`LinearProgressIndicator`) para controle orçamentário.
+* **Autenticação Segura:** Sistema de Login e Cadastro de usuários integrado via Supabase.
+* **Perfil e Avatar:**
+    * Upload de foto via Câmera ou Galeria.
+    * Compressão automática e redimensionamento de imagens para otimização de armazenamento.
+    * Remoção de metadados sensíveis (EXIF) para privacidade.
+* **Onboarding & Privacidade:** Fluxo de boas-vindas com coleta de consentimento explícito (LGPD) e persistência de preferências locais.
 
-## ✨ Funcionalidades
+## Tecnologias e Ferramentas
 
-O FitWallet implementa um conjunto de funcionalidades focadas na simplicidade e na experiência do usuário:
+O projeto utiliza um ecossistema moderno de desenvolvimento mobile:
 
-* **Controle de Gastos:**
-    * Adicione, edite e remova transações financeiras.
-    * Visualize todos os gastos recentes em uma lista na tela inicial.
-* **Meta Semanal:**
-    * Defina uma meta de gastos semanal.
-    * Acompanhe o progresso em relação à meta com uma barra visual.
-* **Onboarding do Usuário:**
-    * Um fluxo de introdução de várias etapas para novos usuários.
-    * Coleta de consentimento de Política de Privacidade (simulando conformidade com a LGPD).
-* **Perfil do Usuário com Avatar:**
-    * Adicione uma foto de perfil personalizada tirando uma foto com a **Câmera** ou escolhendo da **Galeria**.
-    * **Compressão de Imagem:** As imagens são redimensionadas (máx 512x512) e comprimidas (qualidade 80) antes de salvar.
-    * **Privacidade:** Metadados sensíveis (EXIF) são removidos da imagem.
-    * **Armazenamento Local:** A foto é salva com segurança no diretório de documentos do aplicativo.
-    * Suporte para **remover** a foto e reverter para um avatar com as iniciais do usuário (fallback).
-* **Persistência de Dados:**
-    * Todas as transações, a meta semanal e o caminho da foto do avatar são salvos localmente usando `shared_preferences`.
-    * Os dados persistem mesmo após o fechamento do aplicativo.
+* **Linguagem:** Dart (SDK >=2.18.0).
+* **Framework:** Flutter (Material Design 3).
+* **Gerência de Estado:** Provider.
+* **Backend as a Service (BaaS):** Supabase (Autenticação e Banco de Dados).
+* **Armazenamento Local:** Shared Preferences (para configurações e cache).
+* **Multimídia:**
+    * `image_picker` (Seleção de imagens).
+    * `flutter_image_compress` (Compressão nativa).
+* **Utilitários:** `flutter_dotenv` (Variáveis de ambiente), `url_launcher`.
 
-## 🛠️ Tecnologias Utilizadas
+## Arquitetura e Padrões de Projeto
 
-Este projeto utiliza um conjunto de pacotes modernos e recomendados para o desenvolvimento Flutter:
+Este projeto foi estruturado seguindo os princípios da **Clean Architecture** para garantir testabilidade e manutenibilidade:
 
-* **Framework:** [Flutter](https://flutter.dev/)
-* **Gerenciamento de Estado:** [Provider](https://pub.dev/packages/provider)
-* **Armazenamento Local:** [Shared Preferences](https://pub.dev/packages/shared_preferences)
-* **Seleção de Imagem (Câmera/Galeria):** [image_picker](https://pub.dev/packages/image_picker)
-* **Processamento de Imagem:** [flutter_image_compress](https://pub.dev/packages/flutter_image_compress)
-* **Gerenciamento de Caminhos de Arquivo:** [path_provider](https://pub.dev/packages/path_provider)
+* **Feature-First:** Organização por funcionalidades (`auth`, `transaction`, `goal`, `user`).
+* **Camadas Separadas:**
+    * **Domain:** Entidades, Casos de Uso (Use Cases) e Contratos de Repositório (sem dependências externas).
+    * **Data:** Implementação dos Repositórios, Data Sources (Remote/Local), DTOs e Mappers.
+    * **Presentation:** Pages, Widgets e Providers (Gerenciamento de Lógica de UI).
+* **Padrões Aplicados:** Repository Pattern, Adapter Pattern (Mappers), Dependency Injection (via Provider).
 
-## 🚀 Como Executar o Projeto
+## Habilidades Demonstradas
+
+O desenvolvimento do FitWallet permitiu a aplicação prática das seguintes competências:
+
+* Desenvolvimento de interfaces responsivas e fiéis ao protótipo (Pixel Perfect).
+* Integração de APIs RESTful e serviços de Backend (Supabase).
+* Manipulação de I/O de arquivos e hardware do dispositivo (Câmera).
+* Gestão de ciclo de vida da aplicação e persistência de dados.
+* Implementação de regras de negócio complexas isoladas da interface.
+
+## Como Executar
 
 1.  **Clone o repositório:**
     ```bash
-    git clone [URL_DO_SEU_REPOSITORIO]
-    cd fitwallet
+    git clone [https://github.com/seu-usuario/fitwallet.git](https://github.com/seu-usuario/fitwallet.git)
     ```
-
-2.  **Instale as dependências:**
+2.  **Configure as Variáveis de Ambiente:**
+    Crie um arquivo `.env` na raiz baseado no `.env.example` e adicione suas credenciais do Supabase.
+3.  **Instale as dependências:**
     ```bash
     flutter pub get
     ```
-
-3.  **Configure as Permissões (para o Avatar):**
-    * Certifique-se de que as permissões de Câmera e Galeria estão configuradas:
-    * **iOS:** O projeto ainda não é totalmente funcional para IOS
-    * **Android:** Adicione a permissão `android.permission.CAMERA` ao `android/app/src/main/AndroidManifest.xml` (se necessário).
-
-4.  **Execute o aplicativo:**
+4.  **Execute o app:**
     ```bash
     flutter run
     ```
-
-## 🎓 Contexto do Projeto
-
-Este aplicativo foi desenvolvido como um projeto acadêmico, com o objetivo de aplicar conceitos de desenvolvimento móvel com Flutter. O foco foi construir um app funcional, desde o onboarding até a persistência de dados local, seguindo boas práticas de gerenciamento de estado e integração com APIs nativas (câmera e galeria).
